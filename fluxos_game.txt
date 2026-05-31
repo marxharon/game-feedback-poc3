@@ -1,0 +1,180 @@
+## Fluxos do game `LevelUP Feedback`
+
+### Visão geral
+O fluxo do `LevelUP Feedback` é organizado como um ciclo único de evolução colaborativa, em que o gestor, o colaborador e o mentor de IA atuam juntos para criar, validar, executar e analisar personas e desafios. O foco é acoplar os passos de criação e validação, reduzir repetições, e usar a IA como orquestradora, não apenas como tradutora.
+
+---
+
+## 1. Fase de Configuração de Persona
+
+### Objetivo
+Criar ou reutilizar uma persona de equipe e deixá-la alinhada entre gestor, colaborador e mentor de IA.
+
+### Passos
+
+- O gestor registra a persona com suas características iniciais, baseadas em sua percepção sobre o colaborador.
+- O sistema identifica se já existe uma persona de desafios anteriores e permite reaproveitar ou evoluir essa base.
+- O mentor de IA normaliza as características da persona em linguagem clara, criando uma versão textual acessível.
+- A persona é publicada como “versão inicial” e o histórico de versões já começa a ser construído.
+- O colaborador é notificado sobre a nova persona e pode:
+  - aceitar,
+  - ajustar,
+  - ou recusar a descrição.
+- Quando o colaborador altera ou valida, o mentor de IA atualiza a persona e registra uma nova versão.
+
+### Resultados
+- Persona única com estados de evolução
+- Histórico contínuo de versões
+- A IA age como mediadora e tradutora da percepção do gestor
+
+---
+
+## 2. Fase de Preparação do Desafio
+
+### Objetivo
+Definir o contexto do desafio, seus eixos de avaliação e as personas participantes, com sugestão inteligente da IA.
+
+### Passos
+
+- O gestor cria o desafio, definindo:
+  - texto explicativo,
+  - data limite geral,
+  - número de ciclos,
+  - eixos de avaliação.
+- O mentor de IA sugere eixos de avaliação e propostas de explicação, com base no contexto do desafio e nas personas envolvidas.
+- Cada eixo recebe uma classificação de tipo:
+  - governança,
+  - social,
+  - bem-estar,
+  - misto.
+- O gestor revisa e aceita, ajusta ou recusa os eixos sugeridos, marcando níveis de aceitação.
+- O gestor seleciona as personas que participarão do desafio.
+- O mentor de IA define um prazo recomendado para a conclusão da fase de preparação, baseado na complexidade.
+
+### Resultados
+- Desafio coeso com eixos alinhados
+- Uso ativo da IA para recomendação
+- Transparência sobre aceitação do gestor
+
+---
+
+## 3. Fase de Execução e Avaliação
+
+### Objetivo
+Rodar o desafio com avaliações do gestor e validação do colaborador em ciclos configuráveis.
+
+### Passos
+
+- O gestor inicia o desafio.
+- Para cada persona participante, o gestor avalia cada eixo usando a escala:
+  - ruim,
+  - regular,
+  - neutro,
+  - bom,
+  - excelente.
+- O gestor pode adicionar observações por eixo.
+- O mentor de IA gera automaticamente uma “persona projetada” para cada participante, combinando a persona atual com a avaliação do desafio.
+- O mentor de IA recomenda melhorias específicas para a persona.
+- O colaborador é notificado e acessa:
+  - o perfil da persona,
+  - a avaliação do gestor,
+  - a persona projetada.
+- O colaborador valida cada avaliação do gestor, podendo:
+  - acatar,
+  - acatar parcialmente,
+  - recusar.
+- Em casos de discordância, o colaborador justifica sua decisão.
+- A IA interpreta essas respostas para medir alinhamento e consistência.
+- Cada ciclo gera um registro de histórico de avaliação tanto do gestor quanto do colaborador.
+
+### Recompensas e prazo
+- O mentor de IA define prazos recomendados para gestor e colaborador.
+- A recompensa depende de:
+  - rapidez,
+  - alinhamento com as avaliações anteriores,
+  - consistência entre gestor e colaborador.
+
+### Resultados
+- Fluxo único de execução com papéis distintos
+- “Persona projetada” como insight produzida pela IA
+- Histórico do desafio em cada ciclo
+
+---
+
+## 4. Fase de Fechamento e Análise
+
+### Objetivo
+Concluir o desafio com análise comparativa e sugestões de desenvolvimento geradas pela IA.
+
+### Passos
+
+- Quando o desafio atinge a data limite, o gestor revisa as avaliações e realiza a última reavaliação dos eixos.
+- O mentor de IA gera comparativos:
+  - evolução da persona desde o primeiro ciclo,
+  - alinhamento entre eixos,
+  - diferença entre persona inicial e persona projetada.
+- A IA sugere:
+  - treinamentos,
+  - capacitações,
+  - mentorias,
+  - ações de desenvolvimento prioritárias.
+- A IA calcula métricas de acurácia entre avaliações do gestor e evolução real percebida.
+- O colaborador é notificado para verificar o fechamento:
+  - acatar ou recusar os resultados finais,
+  - revisar as sugestões de desenvolvimento.
+- O fechamento atualiza o histórico final do desafio e da persona.
+
+### Resultados
+- Análise comparativa robusta
+- Uso da IA para relatórios e planos de ação
+- Transparência para gestor e colaborador
+
+---
+
+## 5. Fase de Resultado e Encerramento
+
+### Objetivo
+Finalizar o ciclo com ranking, pontuação e conclusões para a equipe.
+
+### Passos
+
+- O gestor vê:
+  - o ranking de pontuação entre personas,
+  - sua própria pontuação como gestor,
+  - o resumo das análises da IA.
+- O colaborador vê:
+  - sua posição no ranking,
+  - o histórico completo de análises e sugestões,
+  - a evolução da sua persona.
+- O desafio é encerrado oficialmente somente após:
+  - todas as personas terem completado o fechamento,
+  - o gestor validar a conclusão final.
+
+### Resultados
+- Encerramento coletivo alinhado
+- Feedback final claro para todos
+- Base pronta para novos ciclos
+
+---
+
+## 6. Elementos de validação estatística
+
+### Métricas capturadas
+- tempos de resposta do gestor e colaborador
+- taxas de aceitação / recusa
+- discrepâncias entre avaliações
+- evolução dos eixos por ciclo
+- diferença entre persona inicial e projetada
+- pontuações de recompensa
+
+### Papel da IA
+- calibrar prazos de modo dinâmico
+- sugerir pesos de eixos
+- detectar desalinhamentos e propor revisões
+- gerar relatórios que permitam análises de correlação e evolução
+
+### Benefícios
+- fluxo mais acoplado e menos fragmentado
+- IA usada como facilitadora e analista
+- dados estruturados para análises estatísticas e testes A/B
+

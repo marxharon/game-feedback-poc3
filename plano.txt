@@ -1,0 +1,174 @@
+Plano de Implementação Detalhado: LevelUP Feedback Game
+
+FASE 0: Setup, Infraestrutura e Auth Base
+Objetivo Geral: Subir a arquitetura base, conectar o banco e garantir que gestores e colaboradores consigam logar e ver suas respectivas telas iniciais (vazias, mas funcionais).
+
+Step 0.1: Skeleton e Hello World
+
+Raiz do Projeto: Configurar package.json raiz com a biblioteca `concurrently` para iniciar simultaneamente Frontend, Backend e IA Service com um único comando (ex: `npm run dev:all`).
+Backend (Node.js): Inicializar projeto, configurar Express, CORS, e criar rota GET /ping.
+IA Service (Python): Inicializar FastAPI, configurar integração base com API da OpenAI (provedor de LLM) e criar rota GET /ping.
+Frontend (React): Inicializar com Vite + TypeScript, configurar Tailwind CSS. Criar página inicial chamando os dois /ping.
+Validação: Rodar o projeto inteiro via `concurrently`, acessar o frontend no navegador e ver "Backend OK, IA OK". Permite validar se o layout do Tailwind está funcionando.
+
+Step 0.2: Banco de Dados e Modelagem de Usuários
+
+Infra: O PostgreSQL já está instalado e executando localmente. Apenas garantir a criação do banco "levelup_db".
+Backend: Configurar acesso ao banco utilizando o usuário "postgres" com senha "postgres".
+Backend: Configurar ORM (Drizzle) e criar migrations para tabela users (id, name, email, password_hash, role:ADMIN/MANAGER/COLLAB).
+Backend: Criar script de seed para popular 1 Gestor e 2 Colaboradores de teste.
+Validação: Rodar o seed e verificar no banco os usuários criados.
+
+Step 0.3: Autenticação (Backend)
+
+Backend: Implementar endpoint POST /login retornando JWT. Implementar middleware de proteção de rotas (authMiddleware).
+**Validação:**Testar o login via Insomnia/Postman e acessar uma rota protegida de teste.
+
+Step 0.4: Fluxo de Login Completo (Frontend)
+
+Frontend: Criar layout da Tela de Login.
+Frontend: Integrar formulário com POST /login``. Salvar token no Zustand/Context e no localStorage.
+Frontend: Criar layout base do Dashboard Gestor e Dashboard Colaborador (apenas um header lateral e conteúdo vazio). Redirecionar dependendo da role.
+Validação: Fazer login na tela, ver o layout redirecionando corretamente. Aqui já validamos a experiência visual de entrada no sistema.
+
+FASE 1: Configuração e Alinhamento de Persona
+Objetivo Geral: Fluxo de negociação de persona 100% funcional entre Gestor ↔ IA ↔ Colaborador.
+
+Step 1.1: CRUD Básico da Persona (Visão Gestor)
+
+Backend: Modelagem de personas e persona_versions. Endpoints POST e GET de personas do gestor.
+Frontend: Tela do Gestor para listar personas (Cards vazios) e botão "Nova Persona".
+**Frontend:**Modal/Página com formulário para o gestor preencher os traços da persona base.
+Validação: Gestor cria uma persona e a visualiza como um Card em seu Dashboard.
+
+Step 1.2: Normalização via IA
+
+IA Service: Endpoint POST /normalize-persona recebendo o texto do gestor e usando prompt (via OpenAI) para retornar texto polido.
+Backend: Atualizar o POST /personas para, antes de salvar, chamar a IA e gerar a primeira persona_version oficial.
+Frontend: Ao visualizar o Card da persona criada, exibir o "Texto Original" lado a lado com o "Texto Normalizado pela IA".
+Validação: Criar persona, aguardar processamento e visualizar o layout de comparação de textos.
+
+Step 1.3: Visão do Colaborador (Recebimento)
+
+Backend: Rota GET /personas/pending para o colaborador ver personas atribuídas a ele que precisam de revisão.
+Frontend: No Dashboard do Colaborador, exibir notificação/lista de"Personas Aguardando sua Validação".
+Frontend: Tela de visualização detalhada da persona para o colaborador.
+Validação: Logar como Colaborador, ver o card da persona enviada pelo gestor.
+
+Step 1.4: O Fluxo de Negociação (Aceitar/Ajustar/Recusar)
+
+Backend: Rota POST /personas/:id/feedback recebendo a ação do colaborador (ACCEPT, ADJUST, REJECT) e o texto de justificativa.
+Frontend: Na tela de detalhe (Step 1.3), adicionar os 3 botões. Se "Ajustar", abrir um input de texto para o colaborador propor a mudança.
+IA Service: Endpoint POST /readjust-persona, que lê o texto original + ajuste do colaborador e gera uma nova versão de consenso.
+Validação (Fim da Fase 1): O Colaborador clica em Ajustar e digita uma mudança. O sistema atualiza o status, a IA gera a V2 da persona, e o Gestor passa a enxergar a nova versão validada em sua tela.
+
+FASE 2: Preparação Inteligente do Desafio
+Objetivo Geral: Criação do desafio orquestrada pela IA (sugestão de eixos e cronograma).
+
+Step 2.1: Estrutura Base do Desafio
+
+Backend: Tabelas challenges, challenge_personas, challenge_axes, cycles. Endpoints para criar o rascunho do desafio (título, descrição, personas vinculadas).
+Frontend: Fluxo de criação de Desafio para o gestor (Wizard ou formulário em abas). Aba 1: Dados básicos e seleção das personas (criadas na Fase 1).
+Validação: Gestor consegue criar o rascunho e salvar.
+
+Step 2.2: Inteligência de Eixos e Prazos
+
+IA Service: Endpoint POST /suggest-challenge-setup recebendo os dados do Step 2.1 e retornando Eixos sugeridos (com tipo: Governança, Social, etc.) e um Cronograma sugerido (datas limite recomendadas).
+Frontend: Na Aba 2 do Wizard, exibir um carregamento "A IA está pensando..." e, em seguida, mostrar as sugestões de Eixos em formato de lista (Cards). Exibir o calendário com os prazos recomendados.
+Validação: Testar a geração de conteúdo e avaliar se a interface de carregamento e apresentação das sugestões de IA está clara.
+
+Step 2.3: Interação do Gestor com a IA
+
+Frontend: Permitir que o gestor, na Aba 2, edite, exclua ou aceite os eixos sugeridos pela IA.
+Backend: Rota PUT /challenges/:id/finalize-setup salvando as escolhas do gestor e gerando os ciclos iniciais no banco.
+Validação (Fim da Fase 2): Desafio criado completamente, com eixos consolidados, personas vinculadas e layout do detalhe do desafio pronto para ser iniciado.
+
+FASE 3: Execução, Avaliação e Ciclos (O "Core Loop")
+Objetivo Geral: Fluxo de jogo contínuo rodando. Gestor avalia → IA projeta → Colaborador valida.
+
+Step 3.1: Início e Interface de Avaliação (Gestor)
+
+Backend: Endpoint para mudar status do desafio para RUNNING. Modelagem de evaluations.
+Frontend: Tela de execução do Desafio. Mostrar lista de personas ativas.
+Frontend: Formulário de avaliação: Para cada eixo do desafio, exibir um Slider ou Botões (Ruim a Excelente) e um campo de observação.
+Validação: Iniciar desafio, preencher as notas e observações, clicar em "Salvar Avaliação Temporária".
+
+Step 3.2: Persona Projetada (Feedback em Tempo Real)
+
+IA Service: Endpoint POST /project-persona recebendo a persona validada (Fase 1) + Notas da avaliação (Step 3.1).
+Backend: Enviar dados para IA assim que o Gestor submeter a avaliação e salvar o resultado projected_persona.
+Frontend: Após o gestor avaliar, mostrar um feedback visual de transição e exibir a "Nova Persona Projetada".
+Validação: Gestor submete nota "Excelente em Liderança" e vê a IA gerar um texto de persona atualizado refletindo essa melhoria.
+
+Step 3.3: Tela de Validação do Colaborador
+
+Backend: Endpoints para buscar avaliações e salvar validações do colaborador (collaborator_validations).
+Frontend: Colaborador recebe notificação. Acessa tela dividida: Lado Esquerdo (Notas do Gestor e Justificativas), Lado Direito (Ações: Acatar, Acatar Parcial, Recusar + Campo obrigatório se recusar). Exibe a Persona Projetada.
+Validação: Colaborador visualiza os dados preenchidos no Step 3.2 e responde.
+
+Step 3.4: Medição de Alinhamento (IA como Juíza)
+
+IA Service: Endpoint POST /calculate-alignment. Lê as justificativas de "Recusa/Acatamento Parcial" do colaborador e cruza com a nota original, gerando um alignment_score.
+Backend: Atualiza o banco com o score.
+**Frontend:**Exibir um pop-up de recompensa/score após a validação do colaborador.
+Validação: Colaborador discorda da nota 2 (Ruim) dizendo "Entreguei 3 projetos". O score processa e devolve feedback de consistência.
+
+Step 3.5: Rotação de Ciclos
+
+Backend: Lógica para avançar ciclo. Se todos os colaboradores validaram, fechar Ciclo 1 e preparar Ciclo 2 copiando base, mas incrementando contador.
+Frontend: Atualizar Dashboard para exibir status do Ciclo (Ex: "Ciclo 2 de 3 - Aguardando Gestor").
+Validação (Fim da Fase 3): Simular todo o ciclo, verificar avanço e reset dos formulários para o próximo ciclo de avaliação.
+
+FASE 4: Fechamento e Análise
+Objetivo Geral: Encerramento do desafio individual com relatórios finais.
+
+Step 4.1: Reavaliação Final (Finisher)
+
+Backend: Gatilho (data limite ou ciclos concluídos) muda status para FINISHER_PENDING.
+Frontend: Nova tela pro gestor: Reavaliação. Traz as últimas notas do último ciclo e pede apenas para consolidar a nota final.
+Validação: Gestor realiza o fechamento com poucos cliques.
+
+Step 4.2: Relatórios Comparativos (IA)
+
+IA Service: Endpoint POST /generate-closure-report. Analisa as V1 e a VFinal das personas, além do histórico de alinhamento. Gera sugestões (treinamentos, mentorias).
+Backend: Armazena os relatórios estruturados no banco de dados.
+Frontend: Criação da UI de Relatório Final: Gráficos (ex: gráfico de teia comparando eixos Início vs Fim), caixa de texto com o plano de desenvolvimento sugerido.
+Validação: Ver os gráficos renderizados na tela para um fechamento específico.
+
+Step 4.3: Aceite Final do Colaborador
+
+Frontend: Colaborador visualiza a mesma tela de relatório (Step 4.2) e assina digitalmente (botão de "Acatar Fechamento").
+Validação (Fim da Fase 4): O ciclo de vida de uma persona naquele desafio é marcado como COMPLETED.
+
+FASE 5: Resultado, Encerramento e Rankings
+Objetivo Geral: O encerramento coletivo e celebração.
+
+Step 5.1: Motor de Conclusão Global
+
+Backend: Tarefa (ou verificação via middleware) para identificar quando 100% das personas do desafio atingiram COMPLETED. Atualizar status do desafio para CLOSED.
+Validação: API retorna status de desafio completo após o último colaborador aceitar.
+
+Step 5.2: Visão Consolidada e Rankings
+
+Backend: Agregação de dados para retornar Rankings (quem evoluiu mais, gestor com melhor acurácia).
+Frontend (Gestor): Tela de Celebração. Animações de confete. Tabela de classificação e resumo do esforço da equipe.
+Frontend (Colaborador): Tela mostrando seus "Badges" adquiridos durante os ciclos e sua evolução perante a equipe.
+Validação (Fim da Fase 5): Interface com apelo visual de gamificação final operando.
+
+FASE 6: Analytics Avançado e Gamificação (Polimento Final)
+**Objetivo Geral:**Ferramentas para Admin/RH e melhorias visuais refinadas.
+
+Step 6.1: UX e Feedback Sensorial
+
+Frontend: Adicionar toasts (ex: react-toastify) mais estilizados, skeletons de loading nas chamadas da IA (com animação de IA gerando resposta), sons de notificação opcionais.
+Validação: Testar percepção de uso ("feeling" do app).
+
+Step 6.2: Modelos Estatísticos Reais
+
+IA Service: Substituir mocks dos endpoints analíticos pelas implementações reais (Cohen's Kappa no SciPy, regressões usando scikit-learn baseadas na tabela real do BD).
+Validação: Checar consistência dos dados via Jupyter Notebooks conectados ao banco ou Postman.
+
+Step 6.3:Dashboard Admin/RH
+
+Frontend: Nova tela apenas para role ADMIN. Visão de "Saúde da Empresa", evolução média por eixos em múltiplos desafios, painel de detecção de gestores desalinhados.
+Validação (Fim do Projeto): Gestor loga, vê relatórios organizacionais de alto nível com gráficos de biblioteca avançada (Recharts, Chart.js).

@@ -1,0 +1,22 @@
+{
+  "name": "poc3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:ia\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:ia": "cd ia_service && .\\venv\\Scripts\\python -m uvicorn main:app --reload --port 8000",
+    "dev:frontend": "cd frontend && npm run dev",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "puppeteer": "^25.1.0"
+  }
+}
