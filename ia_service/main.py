@@ -79,21 +79,22 @@ Avaliações deste ciclo:
     for ev in request.evaluations:
         prompt += f"- Eixo: {ev.axis_name} | Nota (1 a 5): {ev.rating} | Observação: {ev.observation}\n"
 
-    prompt += "\nRetorne APENAS o novo texto da persona projetada com as recomendações de melhorias."
+    prompt += "\nRetorne APENAS um objeto JSON válido com a exata chave 'projected_persona' contendo o novo texto da persona projetada com as recomendações de melhorias."
 
     if OPENAI_API_KEY:
+        import json
         try:
             client = openai.OpenAI(api_key=OPENAI_API_KEY)
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "Você é um mentor de RH focado em feedback construtivo e desenvolvimento."},
+                    {"role": "system", "content": "Você é um mentor de RH focado em feedback construtivo e desenvolvimento. Retorne sempre em JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.7
+                temperature=0.7, response_format={ "type": "json_object" }
             )
-            projected = response.choices[0].message.content.strip()
-            return ProjectPersonaResponse(projected_persona=projected)
+            data = json.loads(response.choices[0].message.content.strip())
+            return ProjectPersonaResponse(projected_persona=data.get("projected_persona", ""))
         except Exception as e:
             print("Error calling OpenAI:", e)
             pass
@@ -134,21 +135,22 @@ Cargo: {request.role}
 Texto Original (do gestor): {request.original_text}
 Ajuste/Justificativa do Colaborador: {request.justification}
 
-Retorne APENAS o novo texto revisado, integrando o ajuste de forma equilibrada, sem introduções.
+Retorne APENAS um objeto JSON válido com a exata chave "readjusted_text" contendo o novo texto revisado, integrando o ajuste de forma equilibrada, sem introduções.
 """
     if OPENAI_API_KEY:
+        import json
         try:
             client = openai.OpenAI(api_key=OPENAI_API_KEY)
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "Você é um mediador de RH focando em consenso e comunicação não violenta."},
+                    {"role": "system", "content": "Você é um mediador de RH focando em consenso e comunicação não violenta. Retorne sempre em JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.7
+                temperature=0.7, response_format={ "type": "json_object" }
             )
-            readjusted = response.choices[0].message.content.strip()
-            return ReadjustResponse(readjusted_text=readjusted)
+            data = json.loads(response.choices[0].message.content.strip())
+            return ReadjustResponse(readjusted_text=data.get("readjusted_text", ""))
         except Exception as e:
             print("Error calling OpenAI:", e)
             # Fallback to mock
@@ -202,8 +204,7 @@ O retorno DEVE ser um objeto JSON estrito com as exatas chaves abaixo:
                     {"role": "system", "content": "Você é um assistente de RH. Retorne apenas JSON válido."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.7,
-                response_format={ "type": "json_object" }
+                temperature=0.7, response_format={ "type": "json_object" },
             )
             data = json.loads(response.choices[0].message.content.strip())
             axes = []
@@ -297,21 +298,22 @@ Sua tarefa é "normalizar" esse texto:
 2. Organizar os pontos fortes e os pontos a desenvolver de forma clara.
 3. Manter a essência do que o gestor escreveu, mas melhorar a clareza para que possa ser usado como descrição oficial da Persona no jogo.
 
-Retorne APENAS o texto normalizado final, sem introduções ou saudações.
+Retorne APENAS um objeto JSON válido com a exata chave "normalized_text" contendo o texto normalizado final, sem introduções ou saudações.
 """
     if OPENAI_API_KEY:
+        import json
         try:
             client = openai.OpenAI(api_key=OPENAI_API_KEY)
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "Você é um assistente de RH focado em clareza e profissionalismo."},
+                    {"role": "system", "content": "Você é um assistente de RH focado em clareza e profissionalismo. Retorne sempre em JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.7
+                temperature=0.7, response_format={ "type": "json_object" }
             )
-            normalized = response.choices[0].message.content.strip()
-            return NormalizeResponse(normalized_text=normalized)
+            data = json.loads(response.choices[0].message.content.strip())
+            return NormalizeResponse(normalized_text=data.get("normalized_text", ""))
         except Exception as e:
             print("Error calling OpenAI:", e)
             # Fallback to mock
@@ -334,9 +336,14 @@ Pontos a Desenvolver:
     
     return NormalizeResponse(normalized_text=mock_normalized)
 
+class CycleEvaluation(BaseModel):
+    cycle_number: int
+    evaluations: list[dict]
+
 class ClosureReportRequest(BaseModel):
     initial_persona: str
     final_persona: str
+    historical_evaluations: list[CycleEvaluation]
     final_evaluations: list[dict]
 
 class ClosureReportResponse(BaseModel):
@@ -354,6 +361,14 @@ Persona Inicial (V1):
 Persona Final (Validada pelo gestor e colaborador):
 {request.final_persona}
 
+Histórico de Avaliações (Ciclos Anteriores):
+"""
+    for cycle in request.historical_evaluations:
+        prompt += f"Ciclo {cycle.cycle_number}:\n"
+        for ev in cycle.evaluations:
+            prompt += f"- Eixo ID {ev.get('axis_id', 'N/A')} | Nota: {ev.get('rating', 'N/A')} | Obs: {ev.get('observation', '')}\n"
+    
+    prompt += """
 Avaliacao Final Consolidada:
 """
     for ev in request.final_evaluations:
@@ -361,10 +376,14 @@ Avaliacao Final Consolidada:
     
     prompt += """
 Sua tarefa:
-1. Faca uma breve analise comparativa da evolucao (Inicio vs Fim).
-2. Sugira 2 a 3 acoes de desenvolvimento prioritarias (treinamentos, mentorias).
-
-Retorne APENAS o texto do relatorio, formatado de maneira clara.
+Retorne um objeto JSON ESTRITAMENTE com a seguinte estrutura:
+{
+  "resumoAnalitico": "Uma breve analise comparativa...",
+  "acoesRecomendadas": [
+    {"titulo": "Nome", "descricao": "Detalhes"}
+  ],
+  "indiceAcuracia": 85
+}
 """
     if OPENAI_API_KEY:
         try:
@@ -372,10 +391,10 @@ Retorne APENAS o texto do relatorio, formatado de maneira clara.
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "Voce e um analista de RH senior focado em relatorios de desempenho e planos de acao."},
+                    {"role": "system", "content": "Voce e um analista de RH senior. Retorne APENAS JSON valido."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.7
+                temperature=0.7, response_format={ "type": "json_object" }
             )
             report = response.choices[0].message.content.strip()
             return ClosureReportResponse(report_text=report)
@@ -383,12 +402,12 @@ Retorne APENAS o texto do relatorio, formatado de maneira clara.
             print("Error calling OpenAI:", e)
             pass
     
-    mock_report = """[Relatorio de Fechamento Gerado pela IA]
-
-Analise Comparativa:
-A persona apresentou uma evolucao solida desde a versao inicial. Os resultados da avaliacao final demonstram que as metas principais do desafio foram atingidas.
-
-Acoes de Desenvolvimento Sugeridas:
-1. Treinamento avancado nas areas de menor nota.
-2. Mentoria continua para manter a comunicacao assertiva alinhada."""
+    mock_report = """{
+  "resumoAnalitico": "A persona apresentou uma evolucao solida desde a versao inicial.",
+  "acoesRecomendadas": [
+    {"titulo": "Treinamento avancado", "descricao": "Foco nas areas de menor nota do eixo tecnico."},
+    {"titulo": "Mentoria continua", "descricao": "Para manter a comunicacao assertiva alinhada."}
+  ],
+  "indiceAcuracia": 90
+}"""
     return ClosureReportResponse(report_text=mock_report)

@@ -87,12 +87,13 @@ Rodar o desafio com avaliações do gestor e validação do colaborador em ciclo
 - A IA interpreta essas respostas para medir alinhamento e consistência.
 - Cada ciclo gera um registro de histórico de avaliação tanto do gestor quanto do colaborador.
 
-### Recompensas e prazo
+### Recompensas (Gamificação) e prazos
 - O mentor de IA define prazos recomendados para gestor e colaborador.
-- A recompensa depende de:
-  - rapidez,
-  - alinhamento com as avaliações anteriores,
-  - consistência entre gestor e colaborador.
+- Sinergy XP (XP de Sinergia): O score de alinhamento (Alignment Score) calculado pela IA é convertido diretamente em pontos de experiência (XP) para ambos (gestor e colaborador), recompensando a coerência mútua.
+- Sistema de Conquistas (Badges): Ações positivas geram medalhas. 
+  - Ex para Colaborador: "Pensamento Crítico", "Speedrunner", "Finalizador".
+  - Ex para Gestor: "Sinergia Perfeita" (100% de alinhamento num ciclo), "Mentor de Excelência" (Concluir desafios).
+- Missões de Ciclo (Quests): Metas dinâmicas (ex: "Alcançar >80% de Sinergia no Ciclo atual") que, se cumpridas, concedem multiplicadores de bônus de XP.
 
 ### Resultados
 - Fluxo único de execução com papéis distintos
@@ -110,7 +111,7 @@ Concluir o desafio com análise comparativa e sugestões de desenvolvimento gera
 
 - Quando o desafio atinge a data limite, o gestor revisa as avaliações e realiza a última reavaliação dos eixos.
 - O mentor de IA gera comparativos:
-  - evolução da persona desde o primeiro ciclo,
+  - evolução da persona com base no histórico completo de avaliações (ciclo a ciclo),
   - alinhamento entre eixos,
   - diferença entre persona inicial e persona projetada.
 - A IA sugere:
@@ -123,6 +124,7 @@ Concluir o desafio com análise comparativa e sugestões de desenvolvimento gera
   - acatar ou recusar os resultados finais,
   - revisar as sugestões de desenvolvimento.
 - O fechamento atualiza o histórico final do desafio e da persona.
+- Gamificação do Fechamento: Ao acatar o relatório final, o colaborador e o gestor recebem um grande bônus de Sinergy XP (ex: +500 XP) e a Conquista (Badge) "Finalizador".
 
 ### Resultados
 - Análise comparativa robusta
@@ -139,11 +141,14 @@ Finalizar o ciclo com ranking, pontuação e conclusões para a equipe.
 ### Passos
 
 - O gestor vê:
+  - sua própria Barra de Nível e XP acumulada na liderança,
+  - suas Conquistas (Badges) exclusivas de gestão (Ex: "Mentor de Excelência"),
   - o ranking de pontuação entre personas,
   - sua própria pontuação como gestor,
   - o resumo das análises da IA.
 - O colaborador vê:
-  - sua posição no ranking,
+  - sua posição no ranking e sua Barra de Nível (Level/XP progress),
+  - suas Conquistas (Badges) desbloqueadas (ex: "Pensamento Crítico", "Speedrunner"),
   - o histórico completo de análises e sugestões,
   - a evolução da sua persona.
 - O desafio é encerrado oficialmente somente após:
@@ -177,4 +182,3 @@ Finalizar o ciclo com ranking, pontuação e conclusões para a equipe.
 - fluxo mais acoplado e menos fragmentado
 - IA usada como facilitadora e analista
 - dados estruturados para análises estatísticas e testes A/B
-

@@ -111,3 +111,19 @@ export const closureReports = pgTable('closure_reports', {
   collaboratorStatus: varchar('collaborator_status', { length: 50 }).notNull().default('PENDING'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+export const gamification = pgTable('gamification', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull(),
+  xp: integer('xp').notNull().default(0),
+  level: integer('level').notNull().default(1),
+  updatedAt: timestamp('updated_at').defaultNow()
+});
+
+export const badges = pgTable('badges', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: varchar('description', { length: 255 }),
+  earnedAt: timestamp('earned_at').defaultNow()
+});

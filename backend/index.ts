@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { db } from './src/db/db';
-import { users, personas, personaVersions, challenges, challengePersonas, challengeAxes, cycles, evaluations, projectedPersonas, collaboratorValidations, finalEvaluations, closureReports } from './src/db/schema';
+import { users, personas, personaVersions, challenges, challengePersonas, challengeAxes, cycles, evaluations, projectedPersonas, collaboratorValidations, finalEvaluations, closureReports, gamification, badges } from './src/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -59,6 +59,26 @@ app.post('/login', async (req, res): Promise<void> => {
 // Protected route for testing
 app.get('/protected', authMiddleware, (req: AuthRequest, res) => {
   res.json({ message: 'This is a protected route', user: req.user });
+});
+
+// --- GAMIFICATION ROUTES --- //
+app.get('/gamification/me', authMiddleware, async (req: AuthRequest, res): Promise<void> => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+  try {
+    const gList = await db.select().from(gamification).where(eq(gamification.userId, userId));
+    const bList = await db.select().from(badges).where(eq(badges.userId, userId));
+    res.json({
+      gamification: gList.length > 0 ? gList[0] : { xp: 0, level: 1 },
+      badges: bList
+    });
+  } catch (error) {
+    console.error('Error fetching gamification:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // --- USER ROUTES --- //
@@ -350,6 +370,12 @@ app.delete('/personas/:id', authMiddleware, async (req: AuthRequest, res): Promi
       return;
     }
 
+    await db.delete(challengePersonas).where(eq(challengePersonas.personaId, Number(id)));
+    await db.delete(evaluations).where(eq(evaluations.personaId, Number(id)));
+    await db.delete(projectedPersonas).where(eq(projectedPersonas.personaId, Number(id)));
+    await db.delete(collaboratorValidations).where(eq(collaboratorValidations.personaId, Number(id)));
+    await db.delete(finalEvaluations).where(eq(finalEvaluations.personaId, Number(id)));
+    await db.delete(closureReports).where(eq(closureReports.personaId, Number(id)));
     await db.delete(personaVersions).where(eq(personaVersions.personaId, Number(id)));
     await db.delete(personas).where(eq(personas.id, Number(id)));
 
@@ -670,6 +696,62 @@ app.post('/challenges/:challengeId/cycles/:cycleId/personas/:personaId/validate'
       alignmentScore: alignmentScore
     });
 
+    // --- Sinergy XP & Gamification ---
+    let xpGained = alignmentScore;
+    
+    // Quest: Alcançar > 80% de sinergia no ciclo concede multiplicador de XP
+    if (alignmentScore > 80) {
+      xpGained = Math.floor(xpGained * 1.5);
+    }
+
+    const addXp = async (uid: number) => {
+      const gList = await db.select().from(gamification).where(eq(gamification.userId, uid));
+      if (gList.length === 0) {
+        await db.insert(gamification).values({ userId: uid, xp: xpGained, level: Math.floor(xpGained / 100) + 1 });
+      } else {
+        const newXp = gList[0].xp + xpGained;
+        await db.update(gamification).set({ xp: newXp, level: Math.floor(newXp / 100) + 1 }).where(eq(gamification.userId, uid));
+      }
+    };
+
+    if (p[0].collaboratorId) await addXp(p[0].collaboratorId);
+    await addXp(p[0].managerId);
+
+    if (myEvals.length > 0 && (myEvals[0] as any).createdAt) {
+      const evalDate = new Date((myEvals[0] as any).createdAt);
+      const now = new Date();
+      const diffHours = (now.getTime() - evalDate.getTime()) / (1000 * 60 * 60);
+      if (diffHours <= 24 && p[0].collaboratorId) {
+        await db.insert(badges).values({
+          userId: p[0].collaboratorId,
+          name: 'Speedrunner',
+          description: 'Validou a avaliação do ciclo em menos de 24 horas.'
+        });
+      }
+    }
+
+    if (status !== 'ACCEPTED' && justification.length > 10 && alignmentScore >= 70) {
+      if (p[0].collaboratorId) {
+        await db.insert(badges).values({
+          userId: p[0].collaboratorId,
+          name: 'Pensamento Crítico',
+          description: 'Apresentou justificativa bem embasada e reconhecida pela IA no ajuste da persona.'
+        });
+      }
+    }
+
+    // Badge para o Gestor: Sinergia Perfeita
+    if (alignmentScore === 100) {
+      const existingBadge = await db.select().from(badges).where(and(eq(badges.userId, p[0].managerId), eq(badges.name, 'Sinergia Perfeita')));
+      if (existingBadge.length === 0) {
+        await db.insert(badges).values({
+          userId: p[0].managerId,
+          name: 'Sinergia Perfeita',
+          description: 'Alcançou 100% de alinhamento com um colaborador em um ciclo.'
+        });
+      }
+    }
+
     // --- Step 3.5: Rotação de Ciclos ---
     // Verificando se todas as personas deste desafio no ciclo atual já foram validadas
     const allChallengePersonas = await db.select().from(challengePersonas).where(eq(challengePersonas.challengeId, Number(challengeId)));
@@ -703,7 +785,7 @@ app.post('/challenges/:challengeId/cycles/:cycleId/personas/:personaId/validate'
     }
     // -----------------------------------
 
-    res.json({ success: true, alignmentScore });
+    res.json({ success: true, alignmentScore, xpGained });
   } catch (error) {
     console.error('Error saving validation:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -784,7 +866,10 @@ app.get('/challenges', authMiddleware, async (req: AuthRequest, res): Promise<vo
       const currentCycle = currentCycleObj ? currentCycleObj.cycleNumber : 1;
       
       let evaluatedPersonaIds: number[] = [];
-      if (currentCycleObj) {
+      if (c.status === 'FINISHER_PENDING') {
+        const finalEvals = await db.select().from(finalEvaluations).where(eq(finalEvaluations.challengeId, c.id));
+        evaluatedPersonaIds = Array.from(new Set(finalEvals.map(e => e.personaId)));
+      } else if (currentCycleObj) {
         const evals = await db.select().from(evaluations).where(eq(evaluations.cycleId, currentCycleObj.id));
         evaluatedPersonaIds = Array.from(new Set(evals.map(e => e.personaId)));
       }
@@ -1080,7 +1165,8 @@ app.get('/challenges/:id/evaluations', authMiddleware, async (req: AuthRequest, 
     const challengeCycles = await db.select().from(cycles).where(eq(cycles.challengeId, Number(id)));
 
     const projectedPersonasList = await db.select().from(projectedPersonas).where(eq(projectedPersonas.challengeId, Number(id)));
-    res.json({ evaluations: evals, cycles: challengeCycles, projectedPersonas: projectedPersonasList });
+    const validationsList = await db.select().from(collaboratorValidations).where(eq(collaboratorValidations.challengeId, Number(id)));
+    res.json({ evaluations: evals, cycles: challengeCycles, projectedPersonas: projectedPersonasList, validations: validationsList });
   } catch (error) {
     console.error('Error fetching evaluations:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1113,6 +1199,8 @@ app.delete('/challenges/:id', authMiddleware, async (req: AuthRequest, res): Pro
     
     // 2. Deletar os ciclos do desafio
     await db.delete(cycles).where(eq(cycles.challengeId, Number(id)));
+    await db.delete(finalEvaluations).where(eq(finalEvaluations.challengeId, Number(id)));
+    await db.delete(closureReports).where(eq(closureReports.challengeId, Number(id)));
     
     // 3. Deletar eixos e vínculos de personas
     await db.delete(challengeAxes).where(eq(challengeAxes.challengeId, Number(id)));
@@ -1182,6 +1270,22 @@ app.post('/challenges/:id/final-evaluation', authMiddleware, async (req: AuthReq
       const vInitial = allVersions.length > 0 ? allVersions[allVersions.length - 1].textContent : '';
       const vFinal = allVersions.length > 0 ? allVersions[0].textContent : '';
 
+      const allChallengeCycles = await db.select().from(cycles).where(eq(cycles.challengeId, Number(id)));
+      const allChallengeEvals = await db.select().from(evaluations).where(and(eq(evaluations.challengeId, Number(id)), eq(evaluations.personaId, Number(personaId))));
+      const sortedCycles = allChallengeCycles.sort((a, b) => a.cycleNumber - b.cycleNumber);
+      
+      const historicalEvaluationsForIA = sortedCycles.map(cycle => {
+        const cycleEvals = allChallengeEvals.filter(e => e.cycleId === cycle.id);
+        return {
+          cycle_number: cycle.cycleNumber,
+          evaluations: cycleEvals.map(ev => ({
+            axis_id: ev.axisId,
+            rating: Number(ev.rating),
+            observation: ev.observation || ''
+          }))
+        };
+      });
+
       const evalDataForIA = evaluationsData.map((ev: any) => ({
         axis_id: ev.axisId,
         rating: Number(ev.rating),
@@ -1194,6 +1298,7 @@ app.post('/challenges/:id/final-evaluation', authMiddleware, async (req: AuthReq
         body: JSON.stringify({ 
           initial_persona: vInitial,
           final_persona: vFinal,
+          historical_evaluations: historicalEvaluationsForIA,
           final_evaluations: evalDataForIA
         })
       });
@@ -1268,6 +1373,86 @@ app.post('/challenges/:id/closure-reports/:personaId/sign', authMiddleware, asyn
 
     await db.update(closureReports).set({ collaboratorStatus: status }).where(eq(closureReports.id, report[0].id));
 
+    // --- NOVO: Atualizar Histórico da Persona (Step 4.3 - Passo 1 e 3) ---
+    const latestVersion = await db.select()
+      .from(personaVersions)
+      .where(eq(personaVersions.personaId, Number(personaId)))
+      .orderBy(desc(personaVersions.versionNumber))
+      .limit(1);
+    
+    const nextVersionNumber = latestVersion.length > 0 ? latestVersion[0].versionNumber + 1 : 1;
+
+    if (status === 'ACCEPTED') {
+      const latestProjected = await db.select()
+        .from(projectedPersonas)
+        .where(and(
+          eq(projectedPersonas.challengeId, Number(id)),
+          eq(projectedPersonas.personaId, Number(personaId))
+        ))
+        .orderBy(desc(projectedPersonas.id))
+        .limit(1);
+
+      const newContent = latestProjected.length > 0 ? latestProjected[0].textContent : (latestVersion.length > 0 ? latestVersion[0].textContent : '');
+
+      await db.insert(personaVersions).values({
+        personaId: Number(personaId),
+        versionNumber: nextVersionNumber,
+        textContent: newContent,
+        status: 'CONSOLIDADA_POS_DESAFIO',
+        feedback: 'Aceitou o relatório final do desafio.'
+      });
+
+      // Gamificação: Bônus de XP pelo Fechamento
+      const xpGained = 500;
+      const addXp = async (uid: number) => {
+        const gList = await db.select().from(gamification).where(eq(gamification.userId, uid));
+        if (gList.length === 0) {
+          await db.insert(gamification).values({ userId: uid, xp: xpGained, level: Math.floor(xpGained / 100) + 1 });
+        } else {
+          const newXp = gList[0].xp + xpGained;
+          await db.update(gamification).set({ xp: newXp, level: Math.floor(newXp / 100) + 1 }).where(eq(gamification.userId, uid));
+        }
+      };
+
+      if (p[0].collaboratorId) {
+        await addXp(p[0].collaboratorId);
+        await db.insert(badges).values({
+          userId: p[0].collaboratorId,
+          name: 'Finalizador',
+          description: 'Concluiu e acatou com sucesso o fechamento de um desafio.'
+        });
+      }
+      await addXp(p[0].managerId);
+      
+      // Badge para o Gestor: Mentor de Excelência
+      const existingMBadge = await db.select().from(badges).where(and(eq(badges.userId, p[0].managerId), eq(badges.name, 'Mentor de Excelência')));
+      if (existingMBadge.length === 0) {
+        await db.insert(badges).values({
+          userId: p[0].managerId,
+          name: 'Mentor de Excelência',
+          description: 'Conduziu e concluiu um desafio de persona com sucesso.'
+        });
+      }
+    } else if (status === 'REJECTED') {
+      // Buscar a versao inicial tambem
+      const initialVersion = await db.select()
+        .from(personaVersions)
+        .where(eq(personaVersions.personaId, Number(personaId)))
+        .orderBy(personaVersions.versionNumber)
+        .limit(1);
+
+      const initialContent = initialVersion.length > 0 ? initialVersion[0].textContent : '';
+
+      await db.insert(personaVersions).values({
+        personaId: Number(personaId),
+        versionNumber: nextVersionNumber,
+        textContent: initialContent,
+        status: 'MANTIDA_POS_RECUSA',
+        feedback: 'Recusou o relatório final do desafio. Persona retornou à versão inicial.'
+      });
+    }
+    // ----------------------------------------------------------------------
+
     // Phase 5: Check if all personas are completed
     const allChallengePersonas = await db.select().from(challengePersonas).where(eq(challengePersonas.challengeId, Number(id)));
     const totalPersonas = allChallengePersonas.length;
@@ -1280,7 +1465,7 @@ app.post('/challenges/:id/closure-reports/:personaId/sign', authMiddleware, asyn
       await db.update(challenges).set({ status: 'CLOSED' }).where(eq(challenges.id, Number(id)));
     }
 
-    res.json({ success: true });
+    res.json({ success: true, xpGained: status === 'ACCEPTED' ? 500 : 0 });
   } catch (error) {
     console.error('Error signing closure report:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1320,6 +1505,74 @@ app.get('/challenges/pending-closure-reports', authMiddleware, async (req: AuthR
     res.json(pendingReports);
   } catch (error) {
     console.error('Error fetching pending closure reports:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+app.get('/challenges/history-closure-reports', authMiddleware, async (req: AuthRequest, res): Promise<void> => {
+  const userId = req.user?.userId;
+
+  if (req.user?.role !== 'COLLAB' && req.user?.role !== 'ADMIN') {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+
+  try {
+    const myPersonas = await db.select().from(personas).where(eq(personas.collaboratorId, userId as number));
+    const personaIds = myPersonas.map(p => p.id);
+
+    if (personaIds.length === 0) {
+      res.json([]);
+      return;
+    }
+
+    const historyReports = [];
+    for (const pId of personaIds) {
+      const reports = await db.select().from(closureReports).where(and(eq(closureReports.personaId, pId)));
+      
+      for (const r of reports) {
+        if (r.collaboratorStatus === 'PENDING') continue;
+        
+        const c = await db.select().from(challenges).where(eq(challenges.id, r.challengeId));
+        const p = myPersonas.find(x => x.id === pId);
+        if (c.length > 0) {
+          historyReports.push({ report: r, challenge: c[0], persona: p });
+        }
+      }
+    }
+
+    res.json(historyReports);
+  } catch (error) {
+    console.error('Error fetching history closure reports:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+// Manager get closure reports
+app.get('/challenges/:id/closure-reports', authMiddleware, async (req: AuthRequest, res): Promise<void> => {
+  const { id } = req.params;
+  const userId = req.user?.userId;
+
+  if (req.user?.role !== 'MANAGER' && req.user?.role !== 'ADMIN') {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+
+  try {
+    const c = await db.select().from(challenges).where(eq(challenges.id, Number(id)));
+    if (c.length === 0 || c[0].managerId !== userId) {
+      res.status(403).json({ error: 'Forbidden or Not Found' });
+      return;
+    }
+
+    const reports = await db.select().from(closureReports).where(eq(closureReports.challengeId, Number(id)));
+    const finalEvals = await db.select().from(finalEvaluations).where(eq(finalEvaluations.challengeId, Number(id)));
+    
+    res.json({ reports, finalEvaluations: finalEvals });
+  } catch (error) {
+    console.error('Error fetching closure reports:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
-import { Plus, X, User as UserIcon, Edit2, Trash2, Target, PlusCircle, CheckCircle, Clock, CalendarDays, Play, BarChart3, Eye, Sparkles, ArrowRight } from 'lucide-react';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+import { Plus, X, User as UserIcon, Edit2, Trash2, Target, PlusCircle, CheckCircle, Clock, CalendarDays, Play, BarChart3, Eye, Sparkles, ArrowRight, Award } from 'lucide-react';
 
 interface PersonaVersion {
   id: number;
@@ -115,9 +116,12 @@ export function ManagerDashboard() {
 
   // View Evaluations State
   const [isViewEvaluationsModalOpen, setIsViewEvaluationsModalOpen] = useState(false);
-  const [viewChallengeData, setViewChallengeData] = useState<{evaluations: EvaluationData[], cycles: any[], projectedPersonas: any[]}>({ evaluations: [], cycles: [], projectedPersonas: [] });
+  const [viewChallengeData, setViewChallengeData] = useState<{evaluations: EvaluationData[], cycles: any[], projectedPersonas: any[], validations?: any[]}>({ evaluations: [], cycles: [], projectedPersonas: [] });
   const [activeViewCycle, setActiveViewCycle] = useState<number | null>(null);
   const [selectedViewPersonaId, setSelectedViewPersonaId] = useState<number | null>(null);
+  const [isViewClosureReportsModalOpen, setIsViewClosureReportsModalOpen] = useState(false);
+  const [closureReportsData, setClosureReportsData] = useState<{reports: any[], finalEvaluations: any[]} | null>(null);
+  const [gamificationInfo, setGamificationInfo] = useState<{gamification: {xp: number, level: number}, badges: any[]} | null>(null);
 
   const fetchPersonas = async () => {
     try {
@@ -130,6 +134,25 @@ export function ManagerDashboard() {
       }
     } catch (err) {
       console.error('Error fetching personas:', err);
+    }
+  };
+
+  const handleViewClosureReports = async (challenge: Challenge) => {
+    try {
+      const res = await fetch(`http://localhost:3001/challenges/${challenge.id}/closure-reports`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setClosureReportsData(data);
+        setActiveChallengeForEval(challenge);
+        if (challenge.personaIds.length > 0) {
+          setSelectedViewPersonaId(challenge.personaIds[0]);
+        }
+        setIsViewClosureReportsModalOpen(true);
+      }
+    } catch (err) {
+      console.error('Error fetching closure reports:', err);
     }
   };
 
@@ -161,11 +184,22 @@ export function ManagerDashboard() {
     }
   };
 
+  const fetchGamification = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/gamification/me', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setGamificationInfo(data);
+      }
+    } catch (err) {}
+  };
+
   useEffect(() => {
     if (token) {
       fetchPersonas();
       fetchChallenges();
       fetchCollaborators();
+      fetchGamification();
     }
   }, [token]);
 
@@ -513,7 +547,7 @@ export function ManagerDashboard() {
     if (!activeChallengeForEval || !selectedPersonaForEval) return;
     setLoading(true);
     try {
-      const pEvals = evaluationsDict[selectedPersonaForEval] || [];
+      const pEvals = evaluationsDict[selectedPersonaForEval as number] || [];
       const res = await fetch("http://localhost:3001/challenges/" + activeChallengeForEval.id + "/final-evaluation", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: "Bearer " + token },
@@ -632,7 +666,7 @@ export function ManagerDashboard() {
     if (!activeChallengeForEval || !selectedPersonaForEval) return;
     setLoading(true);
     try {
-      const pEvals = evaluationsDict[selectedPersonaForEval] || [];
+      const pEvals = evaluationsDict[selectedPersonaForEval as number] || [];
       const res = await fetch(`http://localhost:3001/challenges/${activeChallengeForEval.id}/evaluate`, {
         method: 'POST',
         headers: { 
@@ -676,6 +710,37 @@ export function ManagerDashboard() {
             <h1 className="text-3xl font-bold text-gray-900">Olá, Gestor {user?.name?.split(' ')[0]}!</h1>
             <p className="text-gray-500 mt-2">Gerencie as personas da sua equipe e crie desafios.</p>
           </div>
+        {gamificationInfo && (
+          <div className="bg-white px-5 py-3 rounded-xl shadow-sm border border-indigo-100 flex items-center gap-4 animate-in fade-in zoom-in duration-500">
+            <div className="w-12 h-12 bg-gradient-to-tr from-indigo-100 to-blue-100 rounded-full flex items-center justify-center text-indigo-700 font-black text-xl shadow-inner border border-indigo-200">
+              L{gamificationInfo.gamification.level}
+            </div>
+            <div>
+              <div className="flex justify-between text-xs font-bold mb-1">
+                <span className="text-gray-700 uppercase tracking-wide">Mentor Liderança</span>
+                <span className="text-indigo-600">{gamificationInfo.gamification.xp} / {gamificationInfo.gamification.level * 100} XP</span>
+              </div>
+              <div className="w-48 h-2.5 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                <div className="h-full bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full relative" style={{ width: `${(gamificationInfo.gamification.xp % 100)}%` }}>
+                  <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+            {gamificationInfo.badges && gamificationInfo.badges.length > 0 && (
+              <div className="flex gap-2 ml-2 pl-4 border-l border-indigo-100 flex-wrap max-w-[200px]">
+                {gamificationInfo.badges.map((badge: any, i: number) => (
+                  <div key={i} className="group relative flex items-center justify-center w-8 h-8 bg-gradient-to-br from-yellow-100 to-orange-100 rounded-full border border-yellow-300 text-yellow-600 cursor-help hover:scale-110 transition-transform shadow-sm">
+                    <Award size={16} className="text-yellow-600" />
+                    <div className="absolute top-full mt-2 right-0 md:left-1/2 md:-translate-x-1/2 w-48 p-2 bg-gray-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center font-normal shadow-lg">
+                      <strong className="block mb-1 text-yellow-300">{badge.name}</strong>
+                      {badge.description}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         </div>
         
         <div className="flex space-x-4 border-b border-gray-200">
@@ -885,15 +950,25 @@ export function ManagerDashboard() {
                         </button>
                       )}
 
-                      {challenge.status === 'FINISHER_PENDING' && (
+                      {challenge.status === 'FINISHER_PENDING' && (challenge.evaluatedPersonaIds?.length || 0) < challenge.personaIds.length && (
                         <button onClick={() => handleOpenFinisherModal(challenge)} className="flex-1 flex items-center justify-center py-2 bg-yellow-600 text-white rounded-lg text-sm font-bold hover:bg-yellow-700 transition-colors shadow-sm">
                           <Target size={16} className="mr-1.5" /> Fechamento Final
                         </button>
                       )}
+                      {challenge.status === 'FINISHER_PENDING' && (challenge.evaluatedPersonaIds?.length || 0) >= challenge.personaIds.length && (
+                        <div className="flex-1 flex items-center justify-center py-2 bg-gray-100 text-gray-500 rounded-lg text-sm font-bold shadow-sm">
+                          <Target size={16} className="mr-1.5" /> Aguardando Assinaturas
+                        </div>
+                      )}
 
                       {(challenge.status === 'CLOSED' || challenge.status === 'RUNNING' || challenge.status === 'FINISHER_PENDING') && (
-                        <button onClick={() => handleViewEvaluations(challenge)} className="flex-none flex items-center justify-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors shadow-sm">
+                        <button onClick={() => handleViewEvaluations(challenge)} title="Visualizar Avaliações" className="flex-none flex items-center justify-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors shadow-sm">
                           <Eye size={16} />
+                        </button>
+                      )}
+                      {(challenge.status === 'CLOSED') && (
+                        <button onClick={() => handleViewClosureReports(challenge)} title="Ver Relatório Final" className="flex-none flex items-center justify-center px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm font-bold hover:bg-blue-100 transition-colors shadow-sm">
+                          <Eye size={16} className="mr-1.5" /> Relatório
                         </button>
                       )}
                     </div>
@@ -965,8 +1040,8 @@ export function ManagerDashboard() {
                 {selectedPersonaForEval ? (
                   <div className="space-y-6">
                     {activeChallengeForEval.axes.map(axis => {
-                      const pEvals = evaluationsDict[selectedPersonaForEval] || [];
-                      const ev = pEvals.find(e => e.axisId === axis.id);
+                      const pEvals = evaluationsDict[selectedPersonaForEval as number] || [];
+                      const ev = pEvals.find((e: any) => e.axisId === axis.id);
                       if (!ev) return null;
                       
                       return (
@@ -1416,16 +1491,22 @@ export function ManagerDashboard() {
                 {selectedPersonaForEval && (
                   <div className="space-y-6">
                     {activeChallengeForEval.axes.map(axis => {
-                      const pEvals = evaluationsDict[selectedPersonaForEval] || [];
-                      const ev = pEvals.find(e => e.axisId === axis.id);
+                      const pEvals = evaluationsDict[selectedPersonaForEval as number] || [];
+                      const ev = pEvals.find((e: any) => e.axisId === axis.id);
                       if (!ev) return null;
                       return (
                         <div key={axis.id} className="p-4 border border-gray-200 rounded-xl bg-white shadow-sm">
                           <div className="mb-2"><h4 className="font-bold text-gray-900">{axis.name}</h4></div>
                           <div className="mb-4 mt-3">
-                            <input type="range" min="1" max="5" step="1" value={ev.rating} onChange={e => handleEvaluationChange(axis.id || 0, 'rating', parseInt(e.target.value))} className="w-full h-2 bg-gray-200" />
+                            <div className="flex justify-between mb-1">
+                              <span className="text-xs font-medium text-red-500">Ruim (1)</span>
+                              <span className="text-xs font-medium text-gray-400">Neutro (3)</span>
+                              <span className="text-xs font-medium text-green-500">Excelente (5)</span>
+                            </div>
+                            <input type="range" min="1" max="5" step="1" value={ev.rating} onChange={e => handleEvaluationChange(axis.id || 0, 'rating', parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+                            <div className="text-center mt-2 font-bold text-indigo-700 text-lg">Nota: {ev.rating}</div>
                           </div>
-                          <div><textarea value={ev.observation} onChange={e => handleEvaluationChange(axis.id || 0, 'observation', e.target.value)} className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg" /></div>
+                          <div><textarea placeholder="Observações adicionais (opcional)" value={ev.observation} onChange={e => handleEvaluationChange(axis.id || 0, 'observation', e.target.value)} className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg" /></div>
                         </div>
                       );
                     })}
@@ -1442,15 +1523,139 @@ export function ManagerDashboard() {
         </div>
       )}
       {/* Modal Relatorio */}
-      {closureReport && (
+      {closureReport && (() => {
+        let parsedReport = null;
+        try { parsedReport = JSON.parse(closureReport.text); } catch(e) { console.error(e); }
+        const chartData = activeChallengeForEval ? activeChallengeForEval.axes.map((axis: any) => {
+          const ev = (evaluationsDict[selectedPersonaForEval as number] || []).find((e: any) => e.axisId === axis.id);
+          return { subject: axis.name, nFinal: ev ? ev.rating : 0 }; 
+        }) : [];
+        return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60]">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
-            <div className="px-6 py-5 border-b border-gray-100"><h2 className="text-xl font-bold text-gray-800">Relatorio de Fechamento (IA)</h2></div>
-            <div className="p-6 overflow-y-auto bg-gray-50"><div className="bg-white p-5 rounded-xl border border-yellow-100 shadow-sm whitespace-pre-wrap">{closureReport.text}</div></div>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><span><svg className="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3l9 12m-9 10v2-9l-9-12li9 12m-9 10v2z" /></svg></span>Relatório de Fechamento IA</h2>
+              <div className="bg-blue-100 text-blue-800 px-4 py-1 rounded-full font-bold">Acurácia: {parsedReport ? parsedReport.indiceAcuracia : '-'}%</div>
+            </div>
+            <div className="p-6 overflow-y-auto bg-gray-50 flex gap-6">
+              <div className="w-1/2 bg-white p-5 rounded-xl shadow-sm">
+                <h3 className="font-bold text-gray-700 mb-4">Evolução das Competências</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="subject" tick={{fontSize: 10}}/>
+                      <PolarRadiusAxis angle={30} domain={[0, 5]} />
+                      <Radar name="Avaliação Final" dataKey="nFinal" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="w-1/2 flex flex-col gap-4">
+                <div className="bg-white p-5 rounded-xl shadow-sm">
+                  <h3 className="font-bold text-gray-700 mb-2">Resumo Analítico</h3>
+                  <p className="text-gray-600 text-sm">{parsedReport ? parsedReport.resumoAnalitico : closureReport.text}</p>
+                </div>
+                <div className="bg-white p-5 rounded-xl shadow-sm flex-1">
+                  <h3 className="font-bold text-gray-700 mb-3">Ações Recomendadas</h3>
+                  <div className="space-y-3">
+                    {parsedReport ? parsedReport.acoesRecomendadas.map((acao: any, idx: number) => (
+                      <div key={idx} className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded-r-ig">
+                        <h4 className="font-bold text-blue-900">{acao.titulo}</h4>
+                        <p className="text-sm text-blue-800 mt-1">{acao.descricao}</p>
+                      </div>
+                    )) : null}
+                  </div>
+                </div>
+              </div>
+            </div>
             <div className="px-6 py-4 border-t border-gray-100 bg-white flex justify-end">
               <button onClick={handleContinueAfterClosure} className="px-6 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-bold shadow-md">
-                {closureReport.isLastPersona ? 'Finalizar Avaliacoes' : 'Proxima Persona'}
+                {closureReport.isLastPersona ? 'Finalizar Avaliacoes' : 'Próxima Persona'}
               </button>
+            </div>
+          </div>
+        </div>
+      );})()}
+
+      {/* Modal View Closure Reports */}
+      {isViewClosureReportsModalOpen && activeChallengeForEval && closureReportsData && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] border-t-8 border-blue-500">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <Eye className="mr-2 text-blue-600" size={24} />
+                Relatórios de Fechamento - {activeChallengeForEval.title}
+              </h2>
+              <button onClick={() => setIsViewClosureReportsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="flex flex-1 overflow-hidden">
+              <div className="w-1/3 border-r border-gray-200 bg-gray-50 p-4 overflow-y-auto">
+                <h3 className="font-semibold text-sm text-gray-500 mb-3">SELECIONE A PERSONA</h3>
+                <div className="space-y-2">
+                  {activeChallengeForEval.personaIds.map(pid => {
+                    const p = personas.find(x => x.id === pid);
+                    const isSelected = selectedViewPersonaId === pid;
+                    const hasReport = closureReportsData.reports.some((r: any) => r.personaId === pid);
+                    return p && hasReport ? (
+                      <button 
+                        key={p.id}
+                        onClick={() => setSelectedViewPersonaId(p.id)}
+                        className={"w-full text-left p-3 rounded-lg border transition-colors " + (
+                          isSelected ? 'bg-white border-blue-300 shadow-sm ring-1 ring-blue-300' : 'bg-white border-gray-200 hover:border-blue-200'
+                        )}
+                      >
+                        <p className={"font-bold text-sm " + (isSelected ? 'text-blue-900' : 'text-gray-900')}>{p.name}</p>
+                        <p className={"text-xs " + (isSelected ? 'text-blue-700' : 'text-gray-500')}>{p.role}</p>
+                      </button>
+                    ) : null;
+                  })}
+                </div>
+              </div>
+              
+              <div className="w-2/3 p-6 overflow-y-auto">
+                {selectedViewPersonaId && (() => {
+                  const report = closureReportsData.reports.find((r: any) => r.personaId === selectedViewPersonaId);
+                  if (!report) return <p className="text-gray-500">Relatório não encontrado.</p>;
+                  
+                  let parsed = null;
+                  try { parsed = JSON.parse(report.summaryText); } catch(e) {}
+                  return (
+                    <div className="space-y-6">
+                      <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                        <h3 className="font-bold text-gray-700 mb-2">Resumo Analítico</h3>
+                        <p className="text-gray-600 text-sm">{parsed ? parsed.resumoAnalitico : report.summaryText}</p>
+                      </div>
+                      
+                      <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                        <h3 className="font-bold text-gray-700 mb-3">Ações Recomendadas</h3>
+                        <div className="space-y-3">
+                          {parsed && parsed.acoesRecomendadas ? parsed.acoesRecomendadas.map((acao: any, idx: number) => (
+                            <div key={idx} className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+                              <h4 className="font-bold text-blue-900">{acao.titulo}</h4>
+                              <p className="text-sm text-blue-800 mt-1">{acao.descricao}</p>
+                            </div>
+                          )) : null}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-500 text-sm">Status da Assinatura:</span>
+                        <span className={"px-3 py-1 rounded-full text-xs font-bold " + (
+                          report.collaboratorStatus === 'ACCEPTED' ? 'bg-green-100 text-green-700' :
+                          report.collaboratorStatus === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        )}>
+                          {report.collaboratorStatus === 'ACCEPTED' ? 'Acatado' : report.collaboratorStatus === 'REJECTED' ? 'Recusado' : 'Pendente'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           </div>
         </div>
@@ -1582,6 +1787,31 @@ export function ManagerDashboard() {
                               <p className="text-sm text-indigo-800 whitespace-pre-wrap leading-relaxed">
                                 {projected.textContent}
                               </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                      {(() => {
+                        const validation = viewChallengeData.validations?.find(
+                          (v: any) => v.personaId === selectedViewPersonaId && v.cycleId === activeViewCycle
+                        );
+                        if (validation) {
+                          return (
+                            <div className="mt-4 p-5 border border-purple-200 rounded-xl bg-purple-50/50 shadow-sm">
+                              <h4 className="font-bold text-purple-900 text-lg mb-3">Retorno do Colaborador</h4>
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="text-sm font-bold text-gray-700">Status:</span>
+                                <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${validation.status === 'ACCEPTED' ? 'bg-green-100 text-green-800' : validation.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                                  {validation.status === 'ACCEPTED' ? 'Acatado' : validation.status === 'PARTIAL' ? 'Parcial' : 'Recusado'}
+                                </span>
+                              </div>
+                              {validation.justification && (
+                                <div>
+                                  <span className="text-sm font-bold text-gray-700 block mb-1">Justificativa:</span>
+                                  <p className="text-sm text-gray-800 bg-white p-3 rounded-lg border border-purple-100 whitespace-pre-wrap">{validation.justification}</p>
+                                </div>
+                              )}
                             </div>
                           );
                         }

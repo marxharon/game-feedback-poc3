@@ -106,12 +106,12 @@ Backend: Endpoints para buscar avaliações e salvar validações do colaborador
 Frontend: Colaborador recebe notificação. Acessa tela dividida: Lado Esquerdo (Notas do Gestor e Justificativas), Lado Direito (Ações: Acatar, Acatar Parcial, Recusar + Campo obrigatório se recusar). Exibe a Persona Projetada.
 Validação: Colaborador visualiza os dados preenchidos no Step 3.2 e responde.
 
-Step 3.4: Medição de Alinhamento (IA como Juíza)
+Step 3.4: Medição de Alinhamento (IA como Juíza), Quests e Sinergy XP
 
 IA Service: Endpoint POST /calculate-alignment. Lê as justificativas de "Recusa/Acatamento Parcial" do colaborador e cruza com a nota original, gerando um alignment_score.
-Backend: Atualiza o banco com o score.
-**Frontend:**Exibir um pop-up de recompensa/score após a validação do colaborador.
-Validação: Colaborador discorda da nota 2 (Ruim) dizendo "Entreguei 3 projetos". O score processa e devolve feedback de consistência.
+Backend: Atualiza o banco com o score e converte esse percentual em Sinergy XP para o gestor e colaborador. Concede Badge "Sinergia Perfeita" para o gestor e "Speedrunner" para o colaborador.
+Frontend: Exibir um pop-up animado de recompensa (ex: "+90 XP de Sinergia!") e HUD atualizado com a barra de nível (LevelUp) preenchendo.
+Validação: Colaborador discorda da nota 2 (Ruim) dizendo "Entreguei 3 projetos". O score processa, devolve feedback de consistência e atribui XP.
 
 Step 3.5: Rotação de Ciclos
 
@@ -128,32 +128,33 @@ Backend: Gatilho (data limite ou ciclos concluídos) muda status para FINISHER_P
 Frontend: Nova tela pro gestor: Reavaliação. Traz as últimas notas do último ciclo e pede apenas para consolidar a nota final.
 Validação: Gestor realiza o fechamento com poucos cliques.
 
-Step 4.2: Relatórios Comparativos (IA)
+Step 4.2: Relatórios Comparativos (IA) com Histórico Completo
 
-IA Service: Endpoint POST /generate-closure-report. Analisa as V1 e a VFinal das personas, além do histórico de alinhamento. Gera sugestões (treinamentos, mentorias).
+IA Service: Endpoint POST /generate-closure-report. Analisa as V1 e a VFinal das personas, além do histórico completo de avaliações de todos os ciclos e do alinhamento. Gera sugestões (treinamentos, mentorias).
 Backend: Armazena os relatórios estruturados no banco de dados.
 Frontend: Criação da UI de Relatório Final: Gráficos (ex: gráfico de teia comparando eixos Início vs Fim), caixa de texto com o plano de desenvolvimento sugerido.
 Validação: Ver os gráficos renderizados na tela para um fechamento específico.
 
-Step 4.3: Aceite Final do Colaborador
+Step 4.3: Aceite Final do Colaborador e Recompensas de Fechamento
 
-Frontend: Colaborador visualiza a mesma tela de relatório (Step 4.2) e assina digitalmente (botão de "Acatar Fechamento").
-Validação (Fim da Fase 4): O ciclo de vida de uma persona naquele desafio é marcado como COMPLETED.
+Frontend: Colaborador visualiza a mesma tela de relatório (Step 4.2) e acata o fechamento.
+Backend: Ao assinar e acatar o relatório final, o sistema consolida a persona, concede grande bônus de Sinergy XP para o gestor e colaborador, e desbloqueia a Badge "Finalizador" para o colaborador e "Mentor de Excelência" para o gestor.
+Validação (Fim da Fase 4): O ciclo de vida de uma persona naquele desafio é marcado como COMPLETED e a recompensa final é processada.
 
-FASE 5: Resultado, Encerramento e Rankings
-Objetivo Geral: O encerramento coletivo e celebração.
+FASE 5: Resultado, Gamificação Contínua e Rankings
+Objetivo Geral: Consolidar XP, exibir evolução de nível (LevelUP) e encerramento coletivo.
 
 Step 5.1: Motor de Conclusão Global
 
 Backend: Tarefa (ou verificação via middleware) para identificar quando 100% das personas do desafio atingiram COMPLETED. Atualizar status do desafio para CLOSED.
 Validação: API retorna status de desafio completo após o último colaborador aceitar.
 
-Step 5.2: Visão Consolidada e Rankings
+Step 5.2: Visão Consolidada, Quests e Rankings
 
-Backend: Agregação de dados para retornar Rankings (quem evoluiu mais, gestor com melhor acurácia).
-Frontend (Gestor): Tela de Celebração. Animações de confete. Tabela de classificação e resumo do esforço da equipe.
-Frontend (Colaborador): Tela mostrando seus "Badges" adquiridos durante os ciclos e sua evolução perante a equipe.
-Validação (Fim da Fase 5): Interface com apelo visual de gamificação final operando.
+Backend: Agregação de dados para retornar Rankings de XP (Sinergy XP acumulado), distribuição de novas Conquistas (Badges) de conclusão, e verificação de Missões (Quests) cumpridas.
+Frontend (Gestor): Tela de Celebração. Animações de confete. Ranking da equipe baseado em Nível e XP. Painel de acurácia de liderança.
+Frontend (Colaborador): Perfil gamificado (HUD) mostrando o Nível atual, barra de progresso para o próximo nível, "Badges" adquiridos (ex: "Pensamento Crítico") e histórico de evolução da persona.
+Validação (Fim da Fase 5): Interface com forte apelo visual de gamificação e progressão contínua operando com dados reais.
 
 FASE 6: Analytics Avançado e Gamificação (Polimento Final)
 **Objetivo Geral:**Ferramentas para Admin/RH e melhorias visuais refinadas.
