@@ -1623,10 +1623,40 @@ export function ManagerDashboard() {
                   
                   let parsed = null;
                   try { parsed = JSON.parse(report.summaryText); } catch(e) {}
+                  
+                  const chartData = activeChallengeForEval.axes.map((axis: any) => {
+                    const ev = closureReportsData.finalEvaluations.find((e: any) => e.personaId === selectedViewPersonaId && e.axisId === axis.id);
+                    return { subject: axis.name, score: ev ? ev.rating : 0 };
+                  });
+
                   return (
                     <div className="space-y-6">
                       <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-                        <h3 className="font-bold text-gray-700 mb-2">Resumo Analítico</h3>
+                        <h3 className="font-bold text-gray-700 mb-4 flex items-center">
+                          <BarChart3 size={20} className="mr-2 text-blue-600" />
+                          Avaliação Final Consolidada
+                        </h3>
+                        <div className="h-64 mb-4 bg-gray-50 rounded-lg p-2 border border-gray-100">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={chartData}>
+                              <PolarGrid />
+                              <PolarAngleAxis dataKey="subject" tick={{fontSize: 10}} />
+                              <PolarRadiusAxis angle={30} domain={[0, 5]} />
+                              <Radar name="Avaliação" dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.5} />
+                            </RadarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-bold text-gray-700">Resumo Analítico</h3>
+                          {parsed && parsed.indiceAcuracia && (
+                            <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold">
+                              Acurácia: {parsed.indiceAcuracia}%
+                            </span>
+                          )}
+                        </div>
                         <p className="text-gray-600 text-sm">{parsed ? parsed.resumoAnalitico : report.summaryText}</p>
                       </div>
                       

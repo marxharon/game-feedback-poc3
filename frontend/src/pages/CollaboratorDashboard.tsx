@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import ReactMarkdown from 'react-markdown';
 import { User as UserIcon, X, Check, Edit2, XCircle, FileText, BarChart2, Star, Sparkles, MessageSquare, Info, Award } from 'lucide-react';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 
 
 interface ChallengePending {
@@ -377,7 +378,7 @@ export function CollaboratorDashboard() {
                   <h3 className="font-bold text-lg text-gray-900">{persona.name}</h3>
                   <p className="text-indigo-600 text-sm font-medium">{persona.role}</p>
                 </div>
-                <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 text-xs flex justify-end">
+                <div className="px-5 py-3 bg-gray-50 border-t border-purple-100 text-xs flex justify-end">
                   <button 
                     onClick={() => setSelectedChallenge(item)}
                     className="text-purple-600 hover:text-purple-800 font-medium"
@@ -553,7 +554,7 @@ export function CollaboratorDashboard() {
           </h2>
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {historyChallenges.map((item, idx) => (
-              <div key={idx} className="bg-white rounded-xl shadow-sm border border-purple-200 overflow-hidden flex flex-col">
+              <div key={idx} className="bg-white rounded-xl shadow-sm border border-purple-200 overflow-hidden flex flex-col hover:shadow-md transition-all">
                 <div className="p-5 border-b border-gray-100">
                   <div className="flex justify-between items-start">
                     <div>
@@ -571,10 +572,10 @@ export function CollaboratorDashboard() {
                     </span>
                   </div>
                 </div>
-                <div className="p-5 flex-1 flex flex-col items-center justify-center">
-                  <div className="text-xs text-gray-500 mb-2 uppercase tracking-wide font-bold flex items-center group relative">
+                <div className="p-5 flex-1 flex flex-col items-center justify-center bg-gray-50/50">
+                  <div className="text-xs text-gray-500 mb-3 uppercase tracking-wide font-bold flex items-center group relative">
                     Adequação / Alinhamento
-                    <Info size={14} className="ml-1 text-gray-400 cursor-help" />
+                    <Info size={14} className="ml-1 text-purple-400 cursor-help" />
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center font-normal normal-case tracking-normal shadow-lg">
                       A IA avalia o nível de concordância entre a avaliação do gestor e a sua justificativa.
                     </div>
@@ -586,6 +587,15 @@ export function CollaboratorDashboard() {
                   ) : (
                     <span className="text-gray-400 italic text-sm">Não calculado</span>
                   )}
+                </div>
+                <div className="px-5 py-4 bg-white border-t border-gray-100 flex justify-end">
+                  <button 
+                    onClick={() => setSelectedChallenge(item)}
+                    className="flex items-center gap-2 bg-purple-50 hover:bg-purple-100 text-purple-700 px-4 py-2 rounded-lg font-bold text-sm transition-colors border border-purple-200"
+                  >
+                    <BarChart2 size={16} />
+                    Ver Detalhes do Desafio
+                  </button>
                 </div>
               </div>
             ))}
@@ -636,6 +646,22 @@ export function CollaboratorDashboard() {
                     Avaliações do Gestor
                   </h3>
                   
+                  {selectedChallenge.axes && selectedChallenge.evaluations && (
+                    <div className="mb-6 h-64 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={selectedChallenge.axes.map(axis => {
+                          const ev = selectedChallenge.evaluations.find(e => e.axisId === axis.id);
+                          return { subject: axis.name, score: ev ? ev.rating : 0 };
+                        })}>
+                          <PolarGrid />
+                          <PolarAngleAxis dataKey="subject" tick={{fontSize: 10}} />
+                          <PolarRadiusAxis angle={30} domain={[0, 5]} />
+                          <Radar name="Avaliação" dataKey="score" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.5} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
                   <div className="space-y-4">
                     {selectedChallenge.axes.map(axis => {
                       const ev = selectedChallenge.evaluations.find(e => e.axisId === axis.id);
