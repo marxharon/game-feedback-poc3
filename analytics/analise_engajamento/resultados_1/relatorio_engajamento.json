@@ -1,0 +1,12 @@
+{
+    "analise": "Validação da Economia do Jogo e Engajamento",
+    "hipotese": "O tempo de preenchimento é saudável (engajamento) e o XP distribuído não é elitista.",
+    "metricas": {
+        "amostras_feedbacks": 6121,
+        "amostras_usuarios_xp": 300,
+        "media_time_to_feedback_horas": 23.731751151098518,
+        "mediana_time_to_feedback_horas": 16.009751531712872,
+        "indice_gini_xp": 0.021305529662568573
+    },
+    "conclusao": "Gini saudável (<= 0.4) indicando distribuição equilibrada de engajamento."
+}

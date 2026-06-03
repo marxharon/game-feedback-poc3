@@ -121,6 +121,7 @@ Concluir o desafio com análise comparativa e sugestões de desenvolvimento gera
   - ações de desenvolvimento prioritárias.
 - A IA calcula métricas de acurácia entre avaliações do gestor e evolução real percebida.
 - O colaborador é notificado para verificar o fechamento:
+  - visualizar a reavaliação final dos eixos feita pelo gestor,
   - acatar ou recusar os resultados finais,
   - revisar as sugestões de desenvolvimento.
 - O fechamento atualiza o histórico final do desafio e da persona.

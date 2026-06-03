@@ -1,0 +1,51 @@
+{
+    "analise": "Identificação de Padrões Comportamentais (Clusterização K-Means)",
+    "hipotese": "O algoritmo agrupará colaboradores com 'dores' parecidas, permitindo recomendações de treinamentos em lote.",
+    "metricas": {
+        "amostras_personas": 300,
+        "numero_clusters": 4
+    },
+    "resultados_clusters": {
+        "Cluster 0": {
+            "tamanho": 63,
+            "perfil_dominante": "governança",
+            "centroide_medias": {
+                "bem-estar": 3.5676403039848417,
+                "governança": 3.7017718107704103,
+                "misto": 3.4061601978268645,
+                "social": 3.5724388045816617
+            }
+        },
+        "Cluster 1": {
+            "tamanho": 81,
+            "perfil_dominante": "social",
+            "centroide_medias": {
+                "bem-estar": 3.4704290041436012,
+                "governança": 3.4984697754033265,
+                "misto": 3.6135879723842685,
+                "social": 3.665994201070454
+            }
+        },
+        "Cluster 2": {
+            "tamanho": 74,
+            "perfil_dominante": "bem-estar",
+            "centroide_medias": {
+                "bem-estar": 3.637135307723543,
+                "governança": 3.408427327177327,
+                "misto": 3.43525311025311,
+                "social": 3.5402486336309864
+            }
+        },
+        "Cluster 3": {
+            "tamanho": 82,
+            "perfil_dominante": "misto",
+            "centroide_medias": {
+                "bem-estar": 3.5815309998864517,
+                "governança": 3.5746303194653266,
+                "misto": 3.655160001205554,
+                "social": 3.382673895927124
+            }
+        }
+    },
+    "conclusao": "Clusters identificados com sucesso. O RH pode agora direcionar treinamentos específicos para os grupos baseados nos seus centroides (ex: Cluster com alta governança e baixo bem-estar precisa de apoio focado em saúde mental)."
+}

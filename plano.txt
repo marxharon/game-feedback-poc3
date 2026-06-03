@@ -137,7 +137,7 @@ Validação: Ver os gráficos renderizados na tela para um fechamento específic
 
 Step 4.3: Aceite Final do Colaborador e Recompensas de Fechamento
 
-Frontend: Colaborador visualiza a mesma tela de relatório (Step 4.2) e acata o fechamento.
+Frontend: Colaborador recebe notificação. Acessa a tela de fechamento onde visualiza as notas da reavaliação final do gestor (Step 4.1) juntamente com o relatório e plano de desenvolvimento gerados pela IA (Step 4.2), podendo então acatar ou recusar.
 Backend: Ao assinar e acatar o relatório final, o sistema consolida a persona, concede grande bônus de Sinergy XP para o gestor e colaborador, e desbloqueia a Badge "Finalizador" para o colaborador e "Mentor de Excelência" para o gestor.
 Validação (Fim da Fase 4): O ciclo de vida de uma persona naquele desafio é marcado como COMPLETED e a recompensa final é processada.
 

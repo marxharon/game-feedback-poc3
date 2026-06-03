@@ -1,0 +1,20 @@
+{
+    "analise": "Convergencia do Gap de Alinhamento (Digital Twins)",
+    "hipotese": "A media do Alignment Score sobe estatisticamente (e a variancia diminui) do Ciclo 1 ao Ciclo 2.",
+    "metricas_ciclo_1": {
+        "media": 77.45934379457917,
+        "variancia": 575.4258447116364,
+        "amostras": 701
+    },
+    "metricas_ciclo_2": {
+        "media": 88.59771754636233,
+        "variancia": 278.2865090686774,
+        "amostras": 701
+    },
+    "teste_estatistico": {
+        "metodo": "Teste T Pareado (Paired T-Test)",
+        "t_statistic": -10.139426007506557,
+        "p_value": 1.2349316818082068e-22
+    },
+    "conclusao": "Hipotese validada! O alinhamento aumentou de forma estatisticamente significativa."
+}

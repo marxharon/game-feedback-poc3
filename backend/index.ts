@@ -62,6 +62,27 @@ app.get('/protected', authMiddleware, (req: AuthRequest, res) => {
 });
 
 // --- GAMIFICATION ROUTES --- //
+app.get('/gamification/ranking', authMiddleware, async (req: AuthRequest, res): Promise<void> => {
+  try {
+    const allGamification = await db.select({
+      id: gamification.id,
+      userId: gamification.userId,
+      xp: gamification.xp,
+      level: gamification.level,
+      name: users.name,
+      role: users.role,
+    })
+    .from(gamification)
+    .innerJoin(users, eq(gamification.userId, users.id))
+    .orderBy(desc(gamification.xp));
+
+    res.json(allGamification);
+  } catch (error) {
+    console.error('Error fetching ranking:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/gamification/me', authMiddleware, async (req: AuthRequest, res): Promise<void> => {
   const userId = req.user?.userId;
   if (!userId) {

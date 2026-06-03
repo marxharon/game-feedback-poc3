@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import ReactMarkdown from 'react-markdown';
-import { User as UserIcon, X, Check, Edit2, XCircle, FileText, BarChart2, Star, Sparkles, MessageSquare, Info, Award } from 'lucide-react';
+import { User as UserIcon, X, Check, Edit2, XCircle, FileText, BarChart2, Star, Sparkles, MessageSquare, Info, Award, Trophy, Medal, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 
 
@@ -52,8 +52,12 @@ interface Persona {
 
 interface PendingClosureReport {
   report: { id: number; challengeId: number; personaId: number; summaryText: string; collaboratorStatus: string; createdAt: string; };
-  challenge: { id: number; title: string; description: string; };
+  challenge: { id: number; title: string; description: string; axes?: { id: number; name: string; description: string; }[]; };
   persona: Persona;
+  axes?: { id: number; name: string; description: string; }[];
+  finalEvaluations?: { id: number; axisId: number; rating: number; observation: string; }[];
+  evaluations?: { id: number; axisId: number; rating: number; observation: string; }[];
+  finalEvaluation?: any;
 }
 interface ChallengeHistory extends ChallengePending {
   validation: {
@@ -82,9 +86,44 @@ export function CollaboratorDashboard() {
   const [pendingClosureReports, setPendingClosureReports] = useState<PendingClosureReport[]>([]);
   const [historyClosureReports, setHistoryClosureReports] = useState<PendingClosureReport[]>([]);
   const [selectedClosureReport, setSelectedClosureReport] = useState<PendingClosureReport | null>(null);
+  const [closureReportsData, setClosureReportsData] = useState<{reports: any[], finalEvaluations: any[], axes?: any[]} | null>(null);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'ranking'>('dashboard');
+  const [ranking, setRanking] = useState<{userId: number, xp: number, level: number, name: string, role: string}[]>([]);
   const [gamificationInfo, setGamificationInfo] = useState<{gamification: {xp: number, level: number}, badges: any[]} | null>(null);
 
 
+  // Pagination states
+  const [pendingPersonasPage, setPendingPersonasPage] = useState(1);
+  const [historyPersonasPage, setHistoryPersonasPage] = useState(1);
+  const [pendingChallengesPage, setPendingChallengesPage] = useState(1);
+  const [historyChallengesPage, setHistoryChallengesPage] = useState(1);
+  const [pendingClosureReportsPage, setPendingClosureReportsPage] = useState(1);
+  const [historyClosureReportsPage, setHistoryClosureReportsPage] = useState(1);
+  const ITEMS_PER_PAGE = 6;
+
+  const paginatedPendingPersonas = pendingPersonas.slice((pendingPersonasPage - 1) * ITEMS_PER_PAGE, pendingPersonasPage * ITEMS_PER_PAGE);
+  const totalPendingPersonasPages = Math.ceil(pendingPersonas.length / ITEMS_PER_PAGE);
+  useEffect(() => { if (totalPendingPersonasPages > 0 && pendingPersonasPage > totalPendingPersonasPages) setPendingPersonasPage(totalPendingPersonasPages); }, [totalPendingPersonasPages, pendingPersonasPage]);
+
+  const paginatedHistoryPersonas = historyPersonas.slice((historyPersonasPage - 1) * ITEMS_PER_PAGE, historyPersonasPage * ITEMS_PER_PAGE);
+  const totalHistoryPersonasPages = Math.ceil(historyPersonas.length / ITEMS_PER_PAGE);
+  useEffect(() => { if (totalHistoryPersonasPages > 0 && historyPersonasPage > totalHistoryPersonasPages) setHistoryPersonasPage(totalHistoryPersonasPages); }, [totalHistoryPersonasPages, historyPersonasPage]);
+
+  const paginatedPendingChallenges = pendingChallenges.slice((pendingChallengesPage - 1) * ITEMS_PER_PAGE, pendingChallengesPage * ITEMS_PER_PAGE);
+  const totalPendingChallengesPages = Math.ceil(pendingChallenges.length / ITEMS_PER_PAGE);
+  useEffect(() => { if (totalPendingChallengesPages > 0 && pendingChallengesPage > totalPendingChallengesPages) setPendingChallengesPage(totalPendingChallengesPages); }, [totalPendingChallengesPages, pendingChallengesPage]);
+
+  const paginatedHistoryChallenges = historyChallenges.slice((historyChallengesPage - 1) * ITEMS_PER_PAGE, historyChallengesPage * ITEMS_PER_PAGE);
+  const totalHistoryChallengesPages = Math.ceil(historyChallenges.length / ITEMS_PER_PAGE);
+  useEffect(() => { if (totalHistoryChallengesPages > 0 && historyChallengesPage > totalHistoryChallengesPages) setHistoryChallengesPage(totalHistoryChallengesPages); }, [totalHistoryChallengesPages, historyChallengesPage]);
+
+  const paginatedPendingClosureReports = pendingClosureReports.slice((pendingClosureReportsPage - 1) * ITEMS_PER_PAGE, pendingClosureReportsPage * ITEMS_PER_PAGE);
+  const totalPendingClosureReportsPages = Math.ceil(pendingClosureReports.length / ITEMS_PER_PAGE);
+  useEffect(() => { if (totalPendingClosureReportsPages > 0 && pendingClosureReportsPage > totalPendingClosureReportsPages) setPendingClosureReportsPage(totalPendingClosureReportsPages); }, [totalPendingClosureReportsPages, pendingClosureReportsPage]);
+
+  const paginatedHistoryClosureReports = historyClosureReports.slice((historyClosureReportsPage - 1) * ITEMS_PER_PAGE, historyClosureReportsPage * ITEMS_PER_PAGE);
+  const totalHistoryClosureReportsPages = Math.ceil(historyClosureReports.length / ITEMS_PER_PAGE);
+  useEffect(() => { if (totalHistoryClosureReportsPages > 0 && historyClosureReportsPage > totalHistoryClosureReportsPages) setHistoryClosureReportsPage(totalHistoryClosureReportsPages); }, [totalHistoryClosureReportsPages, historyClosureReportsPage]);
   
   
   const fetchHistoryClosureReports = async () => {
@@ -184,6 +223,16 @@ export function CollaboratorDashboard() {
     } catch (err) {}
   };
 
+  const fetchRanking = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/gamification/ranking', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setRanking(data);
+      }
+    } catch (err) {}
+  };
+
     useEffect(() => {
 
 
@@ -193,18 +242,25 @@ export function CollaboratorDashboard() {
       fetchPendingChallenges();
       fetchHistoryChallenges();
       fetchPendingClosureReports();
+      fetchHistoryClosureReports();
       fetchGamification();
+      fetchRanking();
     }
 
 
   }, [token]);
+
+  const handleOpenClosureReport = (item: PendingClosureReport) => {
+    setSelectedClosureReport(item);
+  };
 
   
   const handleSignClosureReport = async (action: 'ACCEPTED' | 'REJECTED') => {
     if (!selectedClosureReport) return;
     setIsSubmitting(true);
     try {
-      const res = await fetch('http://localhost:3001/challenges/' + selectedClosureReport.challenge.id + '/closure-reports/' + selectedClosureReport.persona.id + '/sign', {
+      const targetPersonaId = selectedClosureReport.report?.personaId || selectedClosureReport.persona?.id;
+      const res = await fetch('http://localhost:3001/challenges/' + selectedClosureReport.challenge.id + '/closure-reports/' + targetPersonaId + '/sign', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -304,6 +360,7 @@ export function CollaboratorDashboard() {
     setActionType(null);
     setJustification('');
     setSelectedClosureReport(null);
+    setClosureReportsData(null);
     setXpGained(null);
   };
 
@@ -347,6 +404,89 @@ export function CollaboratorDashboard() {
         )}
       </header>
 
+      <div className="flex space-x-4 border-b border-gray-200 mb-8">
+        <button 
+          onClick={() => setActiveTab('dashboard')}
+          className={`py-2 px-4 border-b-2 font-medium text-sm transition-colors ${activeTab === 'dashboard' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+        >
+          Meu Painel
+        </button>
+        <button 
+          onClick={() => setActiveTab('ranking')}
+          className={`py-2 px-4 border-b-2 font-medium text-sm transition-colors ${activeTab === 'ranking' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+        >
+          Ranking da Equipe
+        </button>
+      </div>
+
+      {activeTab === 'ranking' ? (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-12">
+          <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-white flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <Trophy className="text-yellow-500" size={28} />
+                Ranking de Gamificação
+              </h2>
+              <p className="text-gray-500 text-sm mt-1">Acompanhe sua posição no ranking de sinergia.</p>
+            </div>
+            <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 text-center">
+              <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Sua Posição</p>
+              <p className="text-xl font-black text-purple-600">
+                #{ranking.findIndex(r => r.userId === user?.id) + 1 || '-'}
+              </p>
+            </div>
+          </div>
+          <div className="p-0">
+            {ranking.length === 0 ? (
+              <p className="text-center text-gray-500 py-12">Nenhum jogador pontuou ainda.</p>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {ranking.map((userRank, index) => {
+                  const isTop3 = index < 3;
+                  const isMe = userRank.userId === user?.id;
+                  
+                  return (
+                    <li key={userRank.userId} className={`flex items-center justify-between p-6 transition-colors ${isMe ? 'bg-purple-50/50' : 'hover:bg-gray-50'}`}>
+                      <div className="flex items-center gap-6">
+                        <div className={`flex items-center justify-center w-12 h-12 rounded-full font-black text-xl shadow-sm border ${
+                          index === 0 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white border-yellow-400 scale-110' :
+                          index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white border-gray-300 scale-105' :
+                          index === 2 ? 'bg-gradient-to-br from-orange-300 to-orange-500 text-white border-orange-400 scale-105' :
+                          'bg-gray-100 text-gray-600 border-gray-200'
+                        }`}>
+                          {index === 0 ? <Trophy size={24} /> : index === 1 || index === 2 ? <Medal size={20} /> : `#${index + 1}`}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                            {userRank.name}
+                            {isMe && <span className="bg-purple-100 text-purple-800 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Você</span>}
+                          </h3>
+                          <p className="text-sm text-gray-500 flex items-center gap-1">
+                            {userRank.role === 'MANAGER' || userRank.role === 'ADMIN' ? 'Gestor / Mentor' : 'Colaborador'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right hidden md:block">
+                          <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Nível</p>
+                          <div className="bg-purple-100 text-purple-800 font-bold px-3 py-1 rounded-full text-sm inline-block">
+                            Lvl {userRank.level}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">XP Sinergia</p>
+                          <p className="text-2xl font-black text-gray-900">{userRank.xp}</p>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
       <div className="mb-6">
         <h2 className="text-xl font-bold text-gray-800 flex items-center space-x-2">
           <span>Personas Aguardando sua Validação</span>
@@ -369,9 +509,10 @@ export function CollaboratorDashboard() {
           <p className="text-sm mt-2 max-w-md mx-auto">Não há personas aguardando sua validação no momento.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {pendingPersonas.map(persona => (
-            <div key={persona.id} className="bg-white rounded-xl shadow-sm border border-orange-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow relative">
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {paginatedPendingPersonas.map(persona => (
+              <div key={persona.id} className="bg-white rounded-xl shadow-sm border border-orange-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow relative">
               <div className="absolute top-0 right-0 w-2 h-full bg-orange-400"></div>
               <div className="p-5 border-b border-gray-100 flex items-start justify-between pr-8">
                 <div>
@@ -380,7 +521,7 @@ export function CollaboratorDashboard() {
                 </div>
                 <div className="px-5 py-3 bg-gray-50 border-t border-purple-100 text-xs flex justify-end">
                   <button 
-                    onClick={() => setSelectedChallenge(item)}
+                    onClick={() => setSelectedPersona(persona)}
                     className="text-purple-600 hover:text-purple-800 font-medium"
                   >
                     Ver detalhes
@@ -404,9 +545,33 @@ export function CollaboratorDashboard() {
                   Avaliar Persona
                 </button>
               </div>
+              </div>
+            ))}
+          </div>
+          {totalPendingPersonasPages > 1 && (
+            <div className="mt-8 flex justify-center items-center gap-4">
+              <button
+                onClick={() => setPendingPersonasPage(p => Math.max(1, p - 1))}
+                disabled={pendingPersonasPage === 1}
+                className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={16} /> Anterior
+              </button>
+              <span className="text-sm font-medium text-gray-600">
+                Página {pendingPersonasPage} de {totalPendingPersonasPages}
+              </span>
+              <button
+                onClick={() => setPendingPersonasPage(p => Math.min(totalPendingPersonasPages, p + 1))}
+                disabled={pendingPersonasPage === totalPendingPersonasPages}
+                className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Próxima <ChevronRight size={16} />
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
+      )}
+      </>
       )}
 
       
@@ -427,9 +592,10 @@ export function CollaboratorDashboard() {
           <p className="text-sm mt-2 max-w-md mx-auto">Nenhum relatório de fechamento pendente no momento.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {pendingClosureReports.map((item, index) => (
-            <div key={index} className="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow relative">
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {paginatedPendingClosureReports.map((item, index) => (
+              <div key={index} className="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow relative">
               <div className="absolute top-0 right-0 w-2 h-full bg-blue-400"></div>
               <div className="p-5 border-b border-gray-100">
                 <div className="text-xs font-bold text-blue-600 mb-1">FECHAMENTO DE DESAFIO</div>
@@ -444,15 +610,37 @@ export function CollaboratorDashboard() {
               <div className="px-5 py-4 bg-blue-50/50 border-t border-gray-100 flex justify-between items-center">
                 <span className="text-blue-700 text-sm font-medium animate-pulse">Ação Requerida</span>
                 <button 
-                  onClick={() => setSelectedClosureReport(item)}
+                  onClick={() => handleOpenClosureReport(item)}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg shadow-sm transition-colors text-sm"
                 >
                   Ler e Assinar
                 </button>
               </div>
+              </div>
+            ))}
+          </div>
+          {totalPendingClosureReportsPages > 1 && (
+            <div className="mt-8 flex justify-center items-center gap-4">
+              <button
+                onClick={() => setPendingClosureReportsPage(p => Math.max(1, p - 1))}
+                disabled={pendingClosureReportsPage === 1}
+                className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={16} /> Anterior
+              </button>
+              <span className="text-sm font-medium text-gray-600">
+                Página {pendingClosureReportsPage} de {totalPendingClosureReportsPages}
+              </span>
+              <button
+                onClick={() => setPendingClosureReportsPage(p => Math.min(totalPendingClosureReportsPages, p + 1))}
+                disabled={pendingClosureReportsPage === totalPendingClosureReportsPages}
+                className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Próxima <ChevronRight size={16} />
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* SEÇÃO DE DESAFIOS PENDENTES (FASE 3) */}
@@ -472,9 +660,10 @@ export function CollaboratorDashboard() {
           <p className="text-sm mt-2 max-w-md mx-auto">Nenhuma avaliação de desafio pendente para suas personas no momento.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {pendingChallenges.map((item, index) => (
-            <div key={index} className="bg-white rounded-xl shadow-sm border border-purple-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow relative">
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {paginatedPendingChallenges.map((item, index) => (
+              <div key={index} className="bg-white rounded-xl shadow-sm border border-purple-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow relative">
               <div className="absolute top-0 right-0 w-2 h-full bg-purple-400"></div>
               <div className="p-5 border-b border-gray-100">
                 <div className="text-xs font-bold text-purple-600 mb-1">CICLO {item.cycle.cycleNumber}</div>
@@ -498,9 +687,31 @@ export function CollaboratorDashboard() {
                   Validar Ciclo
                 </button>
               </div>
+              </div>
+            ))}
+          </div>
+          {totalPendingChallengesPages > 1 && (
+            <div className="mt-8 flex justify-center items-center gap-4">
+              <button
+                onClick={() => setPendingChallengesPage(p => Math.max(1, p - 1))}
+                disabled={pendingChallengesPage === 1}
+                className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={16} /> Anterior
+              </button>
+              <span className="text-sm font-medium text-gray-600">
+                Página {pendingChallengesPage} de {totalPendingChallengesPages}
+              </span>
+              <button
+                onClick={() => setPendingChallengesPage(p => Math.min(totalPendingChallengesPages, p + 1))}
+                disabled={pendingChallengesPage === totalPendingChallengesPages}
+                className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Próxima <ChevronRight size={16} />
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {historyPersonas.length > 0 && (
@@ -508,9 +719,10 @@ export function CollaboratorDashboard() {
           <h2 className="text-xl font-bold text-gray-800 flex items-center space-x-2">
             <span>Meu Histórico de Personas</span>
           </h2>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {historyPersonas.map(persona => (
-              <div key={persona.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+          <>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedHistoryPersonas.map(persona => (
+                <div key={persona.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
                 <div className="p-5 border-b border-gray-100">
                   <div className="flex justify-between items-start">
                     <div>
@@ -540,9 +752,31 @@ export function CollaboratorDashboard() {
                     Ver detalhes
                   </button>
                 </div>
+                </div>
+              ))}
+            </div>
+            {totalHistoryPersonasPages > 1 && (
+              <div className="mt-8 flex justify-center items-center gap-4">
+                <button
+                  onClick={() => setHistoryPersonasPage(p => Math.max(1, p - 1))}
+                  disabled={historyPersonasPage === 1}
+                  className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={16} /> Anterior
+                </button>
+                <span className="text-sm font-medium text-gray-600">
+                  Página {historyPersonasPage} de {totalHistoryPersonasPages}
+                </span>
+                <button
+                  onClick={() => setHistoryPersonasPage(p => Math.min(totalHistoryPersonasPages, p + 1))}
+                  disabled={historyPersonasPage === totalHistoryPersonasPages}
+                  className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Próxima <ChevronRight size={16} />
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         </div>
       )}
 
@@ -552,9 +786,10 @@ export function CollaboratorDashboard() {
           <h2 className="text-xl font-bold text-gray-800 flex items-center space-x-2">
             <span>Meu Histórico de Desafios Avaliados</span>
           </h2>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {historyChallenges.map((item, idx) => (
-              <div key={idx} className="bg-white rounded-xl shadow-sm border border-purple-200 overflow-hidden flex flex-col hover:shadow-md transition-all">
+          <>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedHistoryChallenges.map((item, idx) => (
+                <div key={idx} className="bg-white rounded-xl shadow-sm border border-purple-200 overflow-hidden flex flex-col hover:shadow-md transition-all">
                 <div className="p-5 border-b border-gray-100">
                   <div className="flex justify-between items-start">
                     <div>
@@ -597,9 +832,31 @@ export function CollaboratorDashboard() {
                     Ver Detalhes do Desafio
                   </button>
                 </div>
+                </div>
+              ))}
+            </div>
+            {totalHistoryChallengesPages > 1 && (
+              <div className="mt-8 flex justify-center items-center gap-4">
+                <button
+                  onClick={() => setHistoryChallengesPage(p => Math.max(1, p - 1))}
+                  disabled={historyChallengesPage === 1}
+                  className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={16} /> Anterior
+                </button>
+                <span className="text-sm font-medium text-gray-600">
+                  Página {historyChallengesPage} de {totalHistoryChallengesPages}
+                </span>
+                <button
+                  onClick={() => setHistoryChallengesPage(p => Math.min(totalHistoryChallengesPages, p + 1))}
+                  disabled={historyChallengesPage === totalHistoryChallengesPages}
+                  className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Próxima <ChevronRight size={16} />
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         </div>
       )}
       
@@ -649,8 +906,8 @@ export function CollaboratorDashboard() {
                   {selectedChallenge.axes && selectedChallenge.evaluations && (
                     <div className="mb-6 h-64 bg-gray-50 rounded-xl p-4 border border-gray-100">
                       <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={selectedChallenge.axes.map(axis => {
-                          const ev = selectedChallenge.evaluations.find(e => e.axisId === axis.id);
+                      <RadarChart cx="50%" cy="50%" outerRadius="70%" data={selectedChallenge?.axes?.map(axis => {
+                        const ev = selectedChallenge?.evaluations?.find(e => e.axisId === axis.id);
                           return { subject: axis.name, score: ev ? ev.rating : 0 };
                         })}>
                           <PolarGrid />
@@ -663,8 +920,8 @@ export function CollaboratorDashboard() {
                   )}
 
                   <div className="space-y-4">
-                    {selectedChallenge.axes.map(axis => {
-                      const ev = selectedChallenge.evaluations.find(e => e.axisId === axis.id);
+                    {selectedChallenge?.axes?.map(axis => {
+                      const ev = selectedChallenge?.evaluations?.find(e => e.axisId === axis.id);
                       if (!ev) return null;
                       
                       return (
@@ -777,14 +1034,20 @@ export function CollaboratorDashboard() {
         </div>
       )}
 
-                  {historyClosureReports.length > 0 && (
         <div className="mt-12 mb-6">
           <h2 className="text-xl font-bold text-gray-800 flex items-center space-x-2">
             <span>Meu Histórico de Fechamentos</span>
           </h2>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {historyClosureReports.map((item, idx) => (
-              <div key={idx} className="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden flex flex-col">
+          {historyClosureReports.length === 0 ? (
+            <div className="mt-4 bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-gray-500">
+              <p>Você ainda não possui relatórios de fechamento de desafios.</p>
+              <p className="text-sm mt-2">Conclua seus desafios ativos para visualizar suas análises de evolução aqui!</p>
+            </div>
+          ) : (
+            <>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedHistoryClosureReports.map((item, idx) => (
+                <div key={idx} className="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden flex flex-col">
                 <div className="p-5 border-b border-gray-100">
                   <div className="flex justify-between items-start">
                     <div>
@@ -807,20 +1070,42 @@ export function CollaboratorDashboard() {
                 </div>
                 <div className="px-5 py-3 bg-white border-t border-gray-100 text-xs flex justify-end">
                   <button 
-                    onClick={() => setSelectedClosureReport(item)}
+                    onClick={() => handleOpenClosureReport(item)}
                     className="text-blue-600 hover:text-blue-800 font-medium"
                   >
                     Ver relatório
                   </button>
                 </div>
+                </div>
+              ))}
+            </div>
+            {totalHistoryClosureReportsPages > 1 && (
+              <div className="mt-8 flex justify-center items-center gap-4">
+                <button
+                  onClick={() => setHistoryClosureReportsPage(p => Math.max(1, p - 1))}
+                  disabled={historyClosureReportsPage === 1}
+                  className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={16} /> Anterior
+                </button>
+                <span className="text-sm font-medium text-gray-600">
+                  Página {historyClosureReportsPage} de {totalHistoryClosureReportsPages}
+                </span>
+                <button
+                  onClick={() => setHistoryClosureReportsPage(p => Math.min(totalHistoryClosureReportsPages, p + 1))}
+                  disabled={historyClosureReportsPage === totalHistoryClosureReportsPages}
+                  className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Próxima <ChevronRight size={16} />
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+            </>
+          )}
         </div>
-      )}
 
-{/* Modal Relatório de Fechamento (Step 4.3) */}
-      {selectedClosureReport && (
+      {/* Modal Relatório de Fechamento (Step 4.3) */}
+      {selectedClosureReport !== null && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] border-t-8 border-blue-500">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-start bg-gray-50/50">
@@ -846,32 +1131,34 @@ export function CollaboratorDashboard() {
                 </h3>
                 <div className="text-gray-700 leading-relaxed space-y-6">
                   {(() => {
+                    if (!selectedClosureReport || !selectedClosureReport.report) return null;
                     let parsed = null;
                     try {
                       parsed = JSON.parse(selectedClosureReport.report.summaryText);
+                      if (!parsed) throw new Error();
                     } catch (e) {
-                      return <ReactMarkdown>{selectedClosureReport.report.summaryText}</ReactMarkdown>;
+                      return <ReactMarkdown>{selectedClosureReport.report.summaryText || ''}</ReactMarkdown>;
                     }
                     return (
                       <>
                         <div className="bg-blue-50/50 p-5 rounded-lg border border-blue-100">
                           <h4 className="font-bold text-blue-900 mb-2">Resumo Analítico</h4>
-                          <p className="text-sm text-gray-700">{parsed.resumoAnalitico}</p>
+                          <p className="text-sm text-gray-700">{parsed?.resumoAnalitico || ''}</p>
                         </div>
                         
                         <div>
                           <h4 className="font-bold text-gray-900 mb-3">Ações Recomendadas</h4>
                           <div className="space-y-3">
-                            {parsed.acoesRecomendadas?.map((acao: any, idx: number) => (
+                            {parsed?.acoesRecomendadas?.map((acao: any, idx: number) => (
                               <div key={idx} className="p-4 bg-white border-l-4 border-blue-500 rounded-r-lg shadow-sm border border-gray-100">
-                                <h5 className="font-bold text-blue-900">{acao.titulo}</h5>
-                                <p className="text-sm text-gray-600 mt-1">{acao.descricao}</p>
+                                <h5 className="font-bold text-blue-900">{acao?.titulo}</h5>
+                                <p className="text-sm text-gray-600 mt-1">{acao?.descricao}</p>
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        {parsed.indiceAcuracia && (
+                        {parsed?.indiceAcuracia && (
                           <div className="flex items-center gap-2 mt-4">
                             <span className="font-bold text-gray-700 text-sm">Índice de Acurácia:</span>
                             <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold">
@@ -885,7 +1172,7 @@ export function CollaboratorDashboard() {
                 </div>
               </div>
 
-              {selectedClosureReport.report.collaboratorStatus === 'PENDING' ? (
+              {selectedClosureReport.report?.collaboratorStatus === 'PENDING' ? (
                 <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 flex items-center justify-between">
                   <div>
                     <h4 className="font-bold text-blue-900 text-lg">Assinatura Digital</h4>

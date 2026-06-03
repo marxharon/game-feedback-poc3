@@ -1,0 +1,15 @@
+{
+    "analise": "Eficácia da IA e Gamificação (XP vs Evolução de Performance)",
+    "hipotese": "O engajamento com as dinâmicas de feedback mediadas por IA (XP Sinergia) impulsiona diretamente o crescimento profissional da persona (Evolução de Notas).",
+    "metricas": {
+        "amostras_analisadas": 100,
+        "media_evolucao_notas": 1.084,
+        "media_xp": 6800.27
+    },
+    "teste_estatistico": {
+        "metodo": "Correlação de Pearson",
+        "coeficiente_r": 0.07715852747392869,
+        "p_value": 0.4454496643560832
+    },
+    "conclusao": "Os dados não apresentam uma correlação positiva significativa."
+}

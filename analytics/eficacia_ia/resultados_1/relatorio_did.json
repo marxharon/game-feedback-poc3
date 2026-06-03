@@ -1,0 +1,16 @@
+{
+    "analise": "Eficácia dos Insights da IA (Difference-in-Differences)",
+    "hipotese": "Eixos que receberam recomendação da IA apresentam crescimento superior aos demais eixos nos desafios seguintes.",
+    "medias": {
+        "tratados_pre": 2.5024711696869852,
+        "tratados_pos": 4.5,
+        "controle_pre": 4.315591734502192,
+        "controle_pos": 3.0037570444583594
+    },
+    "teste_estatistico": {
+        "metodo": "Teste T Independente das Diferenças (DiD)",
+        "coeficiente_did": 3.309363520356847,
+        "p_value": 0.0
+    },
+    "conclusao": "Hipotese validada! Os eixos com intervenção da IA apresentaram evolução significativamente maior."
+}

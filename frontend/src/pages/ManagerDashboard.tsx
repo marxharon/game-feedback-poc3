@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
-import { Plus, X, User as UserIcon, Edit2, Trash2, Target, PlusCircle, CheckCircle, Clock, CalendarDays, Play, BarChart3, Eye, Sparkles, ArrowRight, Award } from 'lucide-react';
+import { Plus, X, User as UserIcon, Edit2, Trash2, Target, PlusCircle, CheckCircle, Clock, CalendarDays, Play, BarChart3, Eye, Sparkles, ArrowRight, Award, Trophy, Medal, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PersonaVersion {
   id: number;
@@ -90,7 +90,11 @@ export function ManagerDashboard() {
   const [formData, setFormData] = useState({ name: '', role: '', baseText: '', collaboratorId: '' });
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'personas' | 'challenges'>('personas');
+  const [activeTab, setActiveTab] = useState<'personas' | 'challenges' | 'ranking'>('personas');
+  const [ranking, setRanking] = useState<{userId: number, xp: number, level: number, name: string, role: string}[]>([]);
+  const [personasPage, setPersonasPage] = useState(1);
+  const [challengesPage, setChallengesPage] = useState(1);
+  const ITEMS_PER_PAGE = 6;
 
   // Challenge Form states
   const [challengeTitle, setChallengeTitle] = useState('');
@@ -194,14 +198,43 @@ export function ManagerDashboard() {
     } catch (err) {}
   };
 
+  const fetchRanking = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/gamification/ranking', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setRanking(data);
+      }
+    } catch (err) {}
+  };
+
   useEffect(() => {
     if (token) {
       fetchPersonas();
       fetchChallenges();
       fetchCollaborators();
       fetchGamification();
+      fetchRanking();
     }
   }, [token]);
+
+  const paginatedPersonas = personas.slice((personasPage - 1) * ITEMS_PER_PAGE, personasPage * ITEMS_PER_PAGE);
+  const totalPersonaPages = Math.ceil(personas.length / ITEMS_PER_PAGE);
+
+  const paginatedChallenges = challenges.slice((challengesPage - 1) * ITEMS_PER_PAGE, challengesPage * ITEMS_PER_PAGE);
+  const totalChallengePages = Math.ceil(challenges.length / ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    if (totalPersonaPages > 0 && personasPage > totalPersonaPages) {
+      setPersonasPage(totalPersonaPages);
+    }
+  }, [totalPersonaPages, personasPage]);
+
+  useEffect(() => {
+    if (totalChallengePages > 0 && challengesPage > totalChallengePages) {
+      setChallengesPage(totalChallengePages);
+    }
+  }, [totalChallengePages, challengesPage]);
 
   const openCreateModal = () => {
     setEditingPersonaId(null);
@@ -756,10 +789,80 @@ export function ManagerDashboard() {
           >
             Desafios
           </button>
+          <button 
+            onClick={() => setActiveTab('ranking')}
+            className={`py-2 px-4 border-b-2 font-medium text-sm transition-colors ${activeTab === 'ranking' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+          >
+            Ranking da Equipe
+          </button>
         </div>
       </header>
 
-      {activeTab === 'personas' ? (
+      {activeTab === 'ranking' ? (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-white flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <Trophy className="text-yellow-500" size={28} />
+                Ranking de Gamificação
+              </h2>
+              <p className="text-gray-500 text-sm mt-1">Veja os líderes de engajamento e sinergia da equipe.</p>
+            </div>
+            <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 text-center">
+              <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Seu XP Total</p>
+              <p className="text-xl font-black text-indigo-600">{gamificationInfo?.gamification.xp || 0}</p>
+            </div>
+          </div>
+          <div className="p-0">
+            {ranking.length === 0 ? (
+              <p className="text-center text-gray-500 py-12">Nenhum jogador pontuou ainda.</p>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {ranking.map((userRank, index) => {
+                  const isTop3 = index < 3;
+                  const isMe = userRank.userId === user?.id;
+                  
+                  return (
+                    <li key={userRank.userId} className={`flex items-center justify-between p-6 transition-colors ${isMe ? 'bg-indigo-50/50' : 'hover:bg-gray-50'}`}>
+                      <div className="flex items-center gap-6">
+                        <div className={`flex items-center justify-center w-12 h-12 rounded-full font-black text-xl shadow-sm border ${
+                          index === 0 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white border-yellow-400 scale-110' :
+                          index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white border-gray-300 scale-105' :
+                          index === 2 ? 'bg-gradient-to-br from-orange-300 to-orange-500 text-white border-orange-400 scale-105' :
+                          'bg-gray-100 text-gray-600 border-gray-200'
+                        }`}>
+                          {index === 0 ? <Trophy size={24} /> : index === 1 || index === 2 ? <Medal size={20} /> : `#${index + 1}`}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                            {userRank.name}
+                            {isMe && <span className="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Você</span>}
+                          </h3>
+                          <p className="text-sm text-gray-500 flex items-center gap-1">
+                            {userRank.role === 'MANAGER' || userRank.role === 'ADMIN' ? 'Gestor / Mentor' : 'Colaborador'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right hidden md:block">
+                          <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Nível</p>
+                          <div className="bg-indigo-100 text-indigo-800 font-bold px-3 py-1 rounded-full text-sm inline-block">
+                            Lvl {userRank.level}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">XP Sinergia</p>
+                          <p className="text-2xl font-black text-gray-900">{userRank.xp}</p>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      ) : activeTab === 'personas' ? (
         <>
           <div className="mb-4 flex justify-end">
             <button 
@@ -781,8 +884,9 @@ export function ManagerDashboard() {
               <p className="text-sm mt-2 max-w-md mx-auto">Crie a primeira persona para começar a configurar os desafios de alinhamento com sua equipe.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {personas.map(persona => (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {paginatedPersonas.map(persona => (
                 <div key={persona.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col hover:shadow-lg transition-all duration-300">
                   <div className={`p-4 border-b ${
                     persona.latestVersion?.status === 'VALIDADA' ? 'bg-green-50 border-green-100' :
@@ -842,8 +946,32 @@ export function ManagerDashboard() {
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+                ))}
+              </div>
+              {totalPersonaPages > 1 && (
+                <div className="mt-8 flex justify-center items-center gap-4">
+                  <button
+                    onClick={() => setPersonasPage(p => Math.max(1, p - 1))}
+                    disabled={personasPage === 1}
+                    className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft size={16} />
+                    Anterior
+                  </button>
+                  <span className="text-sm font-medium text-gray-600">
+                    Página {personasPage} de {totalPersonaPages}
+                  </span>
+                  <button
+                    onClick={() => setPersonasPage(p => Math.min(totalPersonaPages, p + 1))}
+                    disabled={personasPage === totalPersonaPages}
+                    className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Próxima
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </>
       ) : (
@@ -868,8 +996,9 @@ export function ManagerDashboard() {
               <p className="text-sm mt-2 max-w-md mx-auto">Crie o primeiro desafio e vincule personas para avaliar sua equipe.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {challenges.map(challenge => (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {paginatedChallenges.map(challenge => (
                 <div key={challenge.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col hover:shadow-lg transition-all duration-300">
                   <div className={`p-4 border-b ${
                     challenge.status === 'RUNNING' ? 'bg-indigo-50 border-indigo-100' :
@@ -976,6 +1105,30 @@ export function ManagerDashboard() {
                 </div>
               ))}
             </div>
+            {totalChallengePages > 1 && (
+              <div className="mt-8 flex justify-center items-center gap-4">
+                <button
+                  onClick={() => setChallengesPage(p => Math.max(1, p - 1))}
+                  disabled={challengesPage === 1}
+                  className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={16} />
+                  Anterior
+                </button>
+                <span className="text-sm font-medium text-gray-600">
+                  Página {challengesPage} de {totalChallengePages}
+                </span>
+                <button
+                  onClick={() => setChallengesPage(p => Math.min(totalChallengePages, p + 1))}
+                  disabled={challengesPage === totalChallengePages}
+                  className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Próxima
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </>
           )}
         </>
       )}
